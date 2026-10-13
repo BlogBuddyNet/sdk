@@ -1,0 +1,93 @@
+{
+  "name": "@blogbuddy/sdk",
+  "version": "1.0.1",
+  "description": "Render a BlogBuddy blog on your own site: server components, React hooks, and SEO helpers.",
+  "license": "MIT",
+  "author": "BlogBuddy (https://blogbuddy.net)",
+  "homepage": "https://blogbuddy.net/docs",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BlogBuddyNet/sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/BlogBuddyNet/sdk/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "sideEffects": false,
+  "type": "module",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js",
+      "require": "./dist/server.cjs"
+    },
+    "./renderer": {
+      "types": "./dist/renderer.d.ts",
+      "import": "./dist/renderer.js",
+      "require": "./dist/renderer.cjs"
+    },
+    "./seo": {
+      "types": "./dist/seo.d.ts",
+      "import": "./dist/seo.js",
+      "require": "./dist/seo.cjs"
+    },
+    "./json-ld": {
+      "types": "./dist/json-ld.d.ts",
+      "import": "./dist/json-ld.js",
+      "require": "./dist/json-ld.cjs"
+    },
+    "./feed": {
+      "types": "./dist/feed.d.ts",
+      "import": "./dist/feed.js",
+      "require": "./dist/feed.cjs"
+    },
+    "./hooks": {
+      "types": "./dist/hooks.d.ts",
+      "import": "./dist/hooks.js",
+      "require": "./dist/hooks.cjs"
+    },
+    "./view-beacon": {
+      "types": "./dist/view-beacon.d.ts",
+      "import": "./dist/view-beacon.js",
+      "require": "./dist/view-beacon.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsup && node scripts/fix-extensions.mjs",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run typecheck && npm run build"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "dependencies": {
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.0"
+  },
+  "keywords": [
+    "blog",
+    "cms",
+    "headless",
+    "blogbuddy",
+    "react",
+    "next"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
