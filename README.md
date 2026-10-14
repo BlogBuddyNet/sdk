@@ -393,6 +393,37 @@ of a page, where a read is not a reader:
 <BlogBuddyPost {...blog} slug={slug} countViews={false} />
 ```
 
+## A post that does not exist
+
+`BlogBuddyPost` throws when the slug matches no published post, which a framework will
+usually turn into a 500. Pass your own not-found helper and it hands control back instead,
+using the fetch it already made:
+
+```tsx
+import { notFound } from 'next/navigation'
+
+<BlogBuddyPost {...blog} slug={slug} onNotFound={notFound} />
+```
+
+If you are fetching yourself, the error carries the status, so a missing post is
+distinguishable from an outage without reading the message:
+
+```ts
+import { getPost, isRequestError } from '@blogbuddy/sdk/server'
+
+try {
+  const post = await getPost({ ...blog, slug })
+} catch (error) {
+  if (isRequestError(error, 404)) notFound()
+  throw error
+}
+```
+
+One caveat under partial prerendering: the response status is decided before the dynamic
+part of the page runs, so the not-found page renders with a 200. Set
+`export const dynamic = 'force-dynamic'` if you need a real 404 status and can give up
+prerendering the posts.
+
 ## Next.js Cache Components
 
 If your `next.config.ts` sets `cacheComponents: true`, Next no longer caches `fetch`
@@ -405,8 +436,26 @@ Next.js encountered uncached or runtime data in `generateMetadata()`.
 This route's metadata is blocked, but the rest of its content can be prerendered.
 ```
 
-Only the metadata is affected. `<BlogBuddyList>` and `<BlogBuddyPost>` prerender fine,
-because a component can suspend and Next can stream it.
+The page body needs a boundary too, but a different one. Reading `params` or
+`searchParams` in a page component makes the whole route depend on the URL, so move that
+access into a child inside `<Suspense>`:
+
+```tsx
+async function Posts({ searchParams }) {
+  const { page } = await searchParams
+  return <BlogBuddyList {...blog} perPage={10} page={Number(page) || 1} />
+}
+
+export default function Page({ searchParams }) {
+  return (
+    <Suspense fallback={<p>Loading…</p>}>
+      <Posts searchParams={searchParams} />
+    </Suspense>
+  )
+}
+```
+
+A page that reads neither needs nothing: the components themselves suspend and stream.
 
 Wrap the metadata helper in a cache boundary. On an index page:
 

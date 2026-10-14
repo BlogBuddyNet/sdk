@@ -63,6 +63,24 @@ export interface BlogConfig {
   locale: string | null
 }
 
+/** Thrown by every request helper. `status` is the HTTP status, so a 404 can be told
+ * apart from a 500 without reading the message. */
+export class BlogBuddyRequestError extends Error {
+  readonly status: number
+
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'BlogBuddyRequestError'
+    this.status = status
+  }
+}
+
+/** Whether an error is a BlogBuddy request failure with this status. */
+export function isRequestError(error: unknown, status?: number): error is BlogBuddyRequestError {
+  if (!(error instanceof Error) || error.name !== 'BlogBuddyRequestError') return false
+  return status === undefined || (error as BlogBuddyRequestError).status === status
+}
+
 async function apiFetch<T>(
   path: string,
   { apiKey, baseUrl = DEFAULT_BASE_URL, revalidate = DEFAULT_REVALIDATE }: BlogBuddyServerOptions
@@ -74,7 +92,10 @@ async function apiFetch<T>(
 
   if (!response.ok) {
     const body = await response.json().catch(() => null)
-    throw new Error((body && typeof body.error === 'string' && body.error) || `BlogBuddy request failed with ${response.status}`)
+    const message =
+      (body && typeof body.error === 'string' && body.error) ||
+      `BlogBuddy request failed with ${response.status}`
+    throw new BlogBuddyRequestError(message, response.status)
   }
 
   return (await response.json()) as T
@@ -228,6 +249,7 @@ export async function BlogBuddyPost({
   jsonLd = true,
   countViews = true,
   breadcrumbHome,
+  onNotFound,
   ...options
 }: BlogBuddyConfig & {
   slug: string
@@ -247,15 +269,41 @@ export async function BlogBuddyPost({
   /** Label for the site root in the breadcrumb trail, e.g. "Acme". Omitted, the trail
    * starts at the blog. */
   breadcrumbHome?: string
+  /**
+   * Called instead of throwing when the slug matches no published post.
+   *
+   * Pass your framework's own helper and the component needs no second fetch to decide:
+   *
+   *   import { notFound } from 'next/navigation'
+   *   <BlogBuddyPost {...blog} slug={slug} onNotFound={notFound} />
+   *
+   * Without it a missing post throws, which a framework will usually turn into a 500.
+   */
+  onNotFound?: () => never | void
 }) {
   assertServerRuntime('BlogBuddyPost')
 
-  const [post, templates, config, seo] = await Promise.all([
-    getPost(options),
-    getTemplates(options),
-    optionalBlogConfig(options),
-    seoConfig(options),
-  ])
+  let fetched: [
+    PublicPost,
+    Awaited<ReturnType<typeof getTemplates>>,
+    BlogConfig | null,
+    SeoSiteConfig,
+  ]
+  try {
+    fetched = await Promise.all([
+      getPost(options),
+      getTemplates(options),
+      optionalBlogConfig(options),
+      seoConfig(options),
+    ])
+  } catch (error) {
+    if (onNotFound && isRequestError(error, 404)) {
+      onNotFound()
+      return null
+    }
+    throw error
+  }
+  const [post, templates, config, seo] = fetched
 
   const document = expanded
     ? templates.data.post
