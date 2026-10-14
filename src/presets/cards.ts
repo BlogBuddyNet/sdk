@@ -1,15 +1,12 @@
 import type { TemplateDocument } from '../template-schema'
 import { CURRENT_SCHEMA_VERSION } from '../template-schema'
 
-const INK = '#0f1420'
-const BODY = '#5b6577'
-const MUTED = '#7b8494'
-const CANVAS = '#f4f6f9'
+const INK = '#000000'
+const BODY = '#3f3f46'
+const MUTED = '#8e8e93'
+const PAPER = '#ffffff'
 const CARD = '#ffffff'
-const ACCENT = '#4f46e5'
-const ACCENT_DARK = '#4338ca'
-
-const SHELL = 'max-width: 1120px; margin-left: auto; margin-right: auto; width: 100%'
+const RULE = '#e8e8ea'
 
 export const cardsList: TemplateDocument = {
   schemaVersion: CURRENT_SCHEMA_VERSION,
@@ -17,57 +14,40 @@ export const cardsList: TemplateDocument = {
   root: {
     type: 'container',
     id: 'card-root',
-    style: { direction: 'column', background: CANVAS, color: INK, fontFamily: 'sans-serif' },
+    style: { direction: 'column', background: PAPER, color: INK, fontFamily: 'sans-serif' },
     children: [
       {
         type: 'container',
         id: 'card-shell',
         style: {
           direction: 'column',
-          paddingTop: 72,
-          paddingBottom: 88,
+          paddingTop: 64,
+          paddingBottom: 80,
           paddingLeft: 28,
           paddingRight: 28,
-          customCss: SHELL,
-          mobile: { paddingTop: 44, paddingBottom: 56 },
+          maxWidth: 1080,
+          centerHorizontally: true,
+          width: 100,
+          widthUnit: 'percent',
+          mobile: { paddingTop: 36, paddingBottom: 48, paddingLeft: 18, paddingRight: 18 },
         },
         children: [
           {
-            type: 'heading',
-            id: 'card-masthead',
-            style: {
-              fontSize: 38,
-              fontWeight: 700,
-              customCss: 'letter-spacing: -0.028em; line-height: 1.15',
-              mobile: { fontSize: 28 },
-            },
-            level: 1,
-            content: { source: 'literal', value: 'From the blog' },
-          },
-          {
-            type: 'text',
-            id: 'card-masthead-sub',
-            style: { fontSize: 16, color: BODY, marginTop: 12, customCss: 'line-height: 1.6; max-width: 52ch' },
-            content: { source: 'literal', value: 'Product updates, engineering notes and the thinking behind them.' },
-          },
-          { type: 'spacer', id: 'card-masthead-gap', size: 40 },
-          {
             type: 'postListLoop',
             id: 'card-loop',
-            style: { columns: 3, gap: 24, mobile: { columns: 1, gap: 18 } },
+            style: { columns: 2, gap: 44, mobile: { columns: 1, gap: 28 } },
             itemTemplate: {
               type: 'container',
               id: 'card-card',
               style: {
                 direction: 'column',
                 background: CARD,
-                borderRadius: 18,
-                borderWidth: 1,
-                borderColor: '#e6eaf0',
-                boxShadow: 'sm',
-                customCss: 'overflow: hidden; transition: transform 0.18s ease, box-shadow 0.18s ease',
-                hover: { boxShadow: 'lg', customCss: 'transform: translateY(-3px)' },
+                borderRadius: 20,
+                clip: true,
+                boxShadow: 'md',
+                hover: { boxShadow: 'xl', translateY: -4 },
               },
+              clickAction: { href: { source: 'binding', binding: 'post.url' } },
               children: [
                 {
                   type: 'image',
@@ -79,27 +59,25 @@ export const cardsList: TemplateDocument = {
                 {
                   type: 'container',
                   id: 'card-card-body',
-                  style: { direction: 'column', gap: 10, padding: 22, customCss: 'flex: 1 1 auto' },
+                  style: {
+                    direction: 'column',
+                    paddingTop: 26,
+                    paddingBottom: 26,
+                    paddingLeft: 24,
+                    paddingRight: 24,
+                    flexMode: 'grow',
+                  },
                   children: [
-                    {
-                      type: 'text',
-                      id: 'card-card-date',
-                      style: {
-                        fontSize: 12,
-                        color: MUTED,
-                        fontWeight: 600,
-                        customCss: 'letter-spacing: 0.08em; text-transform: uppercase',
-                      },
-                      content: { source: 'binding', binding: 'post.publishedAt' },
-                    },
                     {
                       type: 'heading',
                       id: 'card-card-title',
                       style: {
-                        fontSize: 19,
+                        fontSize: 23,
                         fontWeight: 700,
                         lineClamp: 2,
-                        customCss: 'letter-spacing: -0.014em; line-height: 1.32',
+                        letterSpacing: -0.018,
+                        lineHeight: 1.28,
+                        mobile: { fontSize: 20 },
                       },
                       level: 2,
                       content: { source: 'binding', binding: 'post.title' },
@@ -107,29 +85,20 @@ export const cardsList: TemplateDocument = {
                     {
                       type: 'text',
                       id: 'card-card-excerpt',
-                      style: { fontSize: 14, color: BODY, lineClamp: 3, customCss: 'line-height: 1.6' },
+                      style: {
+                        fontSize: 16,
+                        color: BODY,
+                        marginTop: 10,
+                        lineClamp: 2,
+                        lineHeight: 1.5,
+                      },
                       content: { source: 'binding', binding: 'post.excerpt' },
                     },
                     {
-                      type: 'button',
-                      id: 'card-card-cta',
-                      style: {
-                        pushToEnd: true,
-                        marginTop: 8,
-                        background: ACCENT,
-                        color: '#ffffff',
-                        paddingTop: 10,
-                        paddingBottom: 10,
-                        paddingLeft: 16,
-                        paddingRight: 16,
-                        borderRadius: 10,
-                        fontSize: 13,
-                        fontWeight: 600,
-                        customCss: 'transition: background 0.15s ease',
-                        hover: { background: ACCENT_DARK },
-                      },
-                      label: { source: 'literal', value: 'Read post' },
-                      href: { source: 'binding', binding: 'post.url' },
+                      type: 'text',
+                      id: 'card-card-date',
+                      style: { fontSize: 13, color: MUTED, pushToEnd: true, paddingTop: 28 },
+                      content: { source: 'binding', binding: 'post.publishedAt' },
                     },
                   ],
                 },
@@ -140,7 +109,7 @@ export const cardsList: TemplateDocument = {
             type: 'pagination',
             id: 'card-pager',
             style: {
-              marginTop: 44,
+              marginTop: 56,
               gap: 8,
               justify: 'center',
               fontSize: 14,
@@ -148,13 +117,13 @@ export const cardsList: TemplateDocument = {
               color: INK,
               background: CARD,
               borderWidth: 1,
-              borderColor: '#e6eaf0',
-              borderRadius: 10,
+              borderColor: RULE,
+              borderRadius: 12,
               padding: 10,
-              hover: { borderColor: ACCENT, color: ACCENT },
+              hover: { borderColor: '#b8b8bd' },
             },
-            activeStyle: { background: ACCENT, color: '#ffffff', borderColor: ACCENT },
-            postsPerPage: 9,
+            activeStyle: { background: INK, color: PAPER, borderColor: INK },
+            postsPerPage: 8,
             mode: 'numbered',
           },
         ],
@@ -169,7 +138,7 @@ export const cardsPost: TemplateDocument = {
   root: {
     type: 'container',
     id: 'card-root',
-    style: { direction: 'column', background: CANVAS, color: INK, fontFamily: 'sans-serif' },
+    style: { direction: 'column', background: PAPER, color: INK, fontFamily: 'sans-serif' },
     children: [
       {
         type: 'container',
@@ -180,7 +149,10 @@ export const cardsPost: TemplateDocument = {
           paddingBottom: 80,
           paddingLeft: 24,
           paddingRight: 24,
-          customCss: 'max-width: 860px; margin-left: auto; margin-right: auto; width: 100%',
+          maxWidth: 860,
+          centerHorizontally: true,
+          width: 100,
+          widthUnit: 'percent',
           mobile: { paddingTop: 28, paddingBottom: 48, paddingLeft: 16, paddingRight: 16 },
         },
         children: [
@@ -190,17 +162,15 @@ export const cardsPost: TemplateDocument = {
             style: {
               direction: 'column',
               background: CARD,
-              borderRadius: 20,
-              borderWidth: 1,
-              borderColor: '#e6eaf0',
+              borderRadius: 24,
+              clip: true,
               boxShadow: 'md',
-              customCss: 'overflow: hidden',
             },
             children: [
               {
                 type: 'image',
                 id: 'card-cover',
-                style: { aspectRatio: '21/9', objectFit: 'cover' },
+                style: { aspectRatio: '16/9', objectFit: 'cover' },
                 source: { source: 'binding', binding: 'post.coverImage' },
                 alt: '',
               },
@@ -217,24 +187,13 @@ export const cardsPost: TemplateDocument = {
                 },
                 children: [
                   {
-                    type: 'text',
-                    id: 'card-date',
-                    style: {
-                      fontSize: 12,
-                      color: MUTED,
-                      fontWeight: 600,
-                      customCss: 'letter-spacing: 0.08em; text-transform: uppercase',
-                    },
-                    content: { source: 'binding', binding: 'post.publishedAt' },
-                  },
-                  {
                     type: 'heading',
                     id: 'card-title',
                     style: {
                       fontSize: 40,
                       fontWeight: 700,
-                      marginTop: 12,
-                      customCss: 'letter-spacing: -0.03em; line-height: 1.12',
+                      letterSpacing: -0.028,
+                      lineHeight: 1.14,
                       mobile: { fontSize: 28 },
                     },
                     level: 1,
@@ -247,16 +206,22 @@ export const cardsPost: TemplateDocument = {
                       fontSize: 18,
                       color: BODY,
                       marginTop: 16,
-                      customCss: 'line-height: 1.6; max-width: 58ch',
+                      lineHeight: 1.6,
                       mobile: { fontSize: 16 },
                     },
                     content: { source: 'binding', binding: 'post.excerpt' },
                   },
-                  { type: 'divider', id: 'card-rule', style: { marginTop: 28, borderColor: '#e6eaf0' } },
+                  {
+                    type: 'text',
+                    id: 'card-date',
+                    style: { fontSize: 13, color: MUTED, marginTop: 20 },
+                    content: { source: 'binding', binding: 'post.publishedAt' },
+                  },
+                  { type: 'divider', id: 'card-rule', style: { marginTop: 28, borderColor: RULE } },
                   {
                     type: 'richContent',
                     id: 'card-body',
-                    style: { fontSize: 17, marginTop: 28, customCss: 'line-height: 1.75' },
+                    style: { fontSize: 17, marginTop: 28, lineHeight: 1.75 },
                   },
                   {
                     type: 'carousel',
@@ -272,15 +237,9 @@ export const cardsPost: TemplateDocument = {
           {
             type: 'heading',
             id: 'card-more-label',
-            style: {
-              fontSize: 13,
-              fontWeight: 700,
-              color: MUTED,
-              marginTop: 48,
-              customCss: 'letter-spacing: 0.1em; text-transform: uppercase',
-            },
+            style: { fontSize: 15, fontWeight: 600, color: MUTED, marginTop: 56 },
             level: 2,
-            content: { source: 'literal', value: 'More from the blog' },
+            content: { source: 'literal', value: 'More posts' },
           },
           {
             type: 'relatedPosts',

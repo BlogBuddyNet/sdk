@@ -2,6 +2,8 @@ import { templateDocumentSchema, type TemplateDocument } from '../template-schem
 import { minimalList, minimalPost } from './minimal'
 import { cardsList, cardsPost } from './cards'
 import { magazineList, magazinePost } from './magazine'
+import { compactList, compactPost } from './compact'
+import { showcaseList, showcasePost } from './showcase'
 
 export interface PresetPair {
   list: TemplateDocument
@@ -12,6 +14,8 @@ export const PRESETS: Record<string, PresetPair> = {
   minimal: { list: minimalList, post: minimalPost },
   cards: { list: cardsList, post: cardsPost },
   magazine: { list: magazineList, post: magazinePost },
+  compact: { list: compactList, post: compactPost },
+  showcase: { list: showcaseList, post: showcasePost },
 }
 
 export const DEFAULT_PRESET_ID = 'minimal'

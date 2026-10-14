@@ -492,3 +492,19 @@ React 18+. `@blogbuddy/sdk/server` and `@blogbuddy/sdk/json-ld` expect a React S
 Components runtime (Next.js App Router or equivalent) and throw a message pointing at
 `BlogBuddy.Post` if they are bundled into a browser build instead. `/renderer` and
 `/hooks` are client-side and need no framework. Everything else works anywhere.
+
+## Keeping up with your design
+
+Your design is built in the dashboard and fetched at render time, so most changes you
+make there show up without touching this package. New design features are the exception:
+the design is a document, and this package is what turns it into a page, so a property it
+has not heard of is skipped.
+
+That is quiet rather than loud. Nothing throws and nothing logs; the page renders with
+that one property missing, which usually looks like spacing that did not apply or a
+cover image sitting in the wrong place. If a design looks right in the editor and wrong
+on your site, upgrade this package first.
+
+Version 1.2.0 added line height, letter spacing, underlines, widths, minimum heights,
+centring, per-side borders, row shares, layering and clipping. Designs that use any of
+them need 1.2.0 or later. Earlier designs render the same on any version.

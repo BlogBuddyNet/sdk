@@ -70,6 +70,10 @@ function coreCssProps(style: BlockStyle): CssProps {
   if (style.paddingBottom !== undefined) props.paddingBottom = `${style.paddingBottom}px`
   if (style.paddingLeft !== undefined) props.paddingLeft = `${style.paddingLeft}px`
   if (style.margin !== undefined) props.margin = `${style.margin}px`
+  if (style.centerHorizontally) {
+    props.marginLeft = 'auto'
+    props.marginRight = 'auto'
+  }
   if (style.marginTop !== undefined) props.marginTop = `${style.marginTop}px`
   if (style.marginRight !== undefined) props.marginRight = `${style.marginRight}px`
   if (style.marginBottom !== undefined) props.marginBottom = `${style.marginBottom}px`
@@ -88,6 +92,18 @@ function coreCssProps(style: BlockStyle): CssProps {
     props.borderWidth = `${style.borderWidth}px`
     props.borderStyle = 'solid'
   }
+  const sideBorders = [
+    ['borderWidthTop', 'borderTopWidth'],
+    ['borderWidthRight', 'borderRightWidth'],
+    ['borderWidthBottom', 'borderBottomWidth'],
+    ['borderWidthLeft', 'borderLeftWidth'],
+  ] as const
+  for (const [prop, cssProp] of sideBorders) {
+    const value = style[prop]
+    if (value === undefined) continue
+    props[cssProp] = `${value}px`
+    props[`${cssProp.replace('Width', '')}Style`] = 'solid'
+  }
   if (style.borderColor) {
     props.borderColor =
       style.borderColorOpacity !== undefined ? colorWithOpacity(style.borderColor, style.borderColorOpacity) : style.borderColor
@@ -96,6 +112,45 @@ function coreCssProps(style: BlockStyle): CssProps {
   if (style.pushToEnd) props.marginTop = 'auto'
   if (style.opacity !== undefined) props.opacity = style.opacity / 100
   if (style.boxShadow && style.boxShadow !== 'none') props.boxShadow = BOX_SHADOW_VALUES[style.boxShadow]
+  if (style.lineHeight !== undefined) props.lineHeight = String(style.lineHeight)
+  if (style.letterSpacing !== undefined) props.letterSpacing = `${style.letterSpacing}em`
+  if (style.textDecoration === 'underline') {
+    props.textDecoration = 'underline'
+    props.textUnderlineOffset = '4px'
+    props.textDecorationThickness = '1px'
+  } else if (style.textDecoration === 'none') {
+    props.textDecoration = 'none'
+  }
+  if (style.noWrap) props.whiteSpace = 'nowrap'
+  if (style.width !== undefined || style.widthUnit === 'fit') {
+    props.width =
+      style.widthUnit === 'fit'
+        ? 'fit-content'
+        : style.widthUnit === 'percent'
+          ? `${style.width}%`
+          : `${style.width}px`
+  }
+  if (style.maxWidth !== undefined) props.maxWidth = `${style.maxWidth}px`
+  if (style.minHeight !== undefined) props.minHeight = `${style.minHeight}px`
+  if (style.clip) props.overflow = 'hidden'
+  if (style.translateY !== undefined) props.transform = `translateY(${style.translateY}px)`
+  if (style.flexMode === 'grow') {
+    props.flex = '1 1 auto'
+    props.minWidth = '0'
+  } else if (style.flexMode === 'fixed') {
+    props.flex = `0 0 ${style.flexBasis ?? 50}%`
+    props.minWidth = '0'
+  }
+  if (style.layer === 'fill') {
+    props.position = 'absolute'
+    props.top = '0'
+    props.left = '0'
+    props.width = '100%'
+    props.height = '100%'
+  } else if (style.layer === 'front') {
+    props.position = 'relative'
+    props.zIndex = '1'
+  }
   if (style.lineClamp !== undefined) {
     props.display = '-webkit-box'
     props.WebkitLineClamp = style.lineClamp
@@ -105,8 +160,11 @@ function coreCssProps(style: BlockStyle): CssProps {
   return props
 }
 
+/** Padding counts inside the width. Inline styles only, never the hover or media rules. */
+export const BORDER_BOX: CssProps = { boxSizing: 'border-box' }
+
 export function baseCssProps(style: BlockStyle): CssProps {
-  return { ...coreCssProps(style), ...parseCustomCss(style.customCss) }
+  return { ...BORDER_BOX, ...coreCssProps(style), ...parseCustomCss(style.customCss) }
 }
 
 export function camelToKebab(prop: string): string {
@@ -187,7 +245,7 @@ const CAROUSEL_PHOTO_PROPS = new Set([
 export function carouselCssProps(style: BlockStyle): { box: CssProps; photo: CssProps } {
   const box: CssProps = {}
   const photo: CssProps = {}
-  for (const [prop, value] of Object.entries(baseCssProps(style))) {
+  for (const [prop, value] of Object.entries({ ...coreCssProps(style), ...parseCustomCss(style.customCss) })) {
     if (CAROUSEL_PHOTO_PROPS.has(prop)) photo[prop] = value
     else box[prop] = value
   }
@@ -201,7 +259,7 @@ function cssDeclarations(props: CssProps, important = true): string {
 }
 
 export function containerCssProps(style: BlockStyle): CssProps {
-  const props = coreCssProps(style)
+  const props = { ...BORDER_BOX, ...coreCssProps(style) }
   if (style.columns !== undefined) {
     props.display = 'grid'
     props.gridTemplateColumns = `repeat(${style.columns}, minmax(0, 1fr))`
@@ -218,11 +276,12 @@ export function containerCssProps(style: BlockStyle): CssProps {
 
 export function imageCssProps(style: BlockStyle): CssProps {
   const props: CssProps = {
-    ...coreCssProps(style),
+    ...BORDER_BOX,
     maxWidth: '100%',
     height: 'auto',
     display: 'block',
     objectFit: style.objectFit ?? 'cover',
+    ...coreCssProps(style),
   }
   if (style.aspectRatio) props.aspectRatio = style.aspectRatio
   return { ...props, ...parseCustomCss(style.customCss) }
@@ -230,12 +289,13 @@ export function imageCssProps(style: BlockStyle): CssProps {
 
 export function buttonCssProps(style: BlockStyle): CssProps {
   const props: CssProps = {
-    ...coreCssProps(style),
+    ...BORDER_BOX,
     display: 'inline-block',
     textDecoration: 'none',
     cursor: 'pointer',
+    ...coreCssProps(style),
   }
-  if (style.alignSelf !== 'stretch') props.width = 'fit-content'
+  if (style.alignSelf !== 'stretch' && props.width === undefined) props.width = 'fit-content'
   return { ...props, ...parseCustomCss(style.customCss) }
 }
 
@@ -258,6 +318,13 @@ function cssPropsForNodeType(type: BlockNode['type'], style: BlockStyle): CssPro
   }
 }
 
+/** Drops the baseline every block gets anyway, so a rule is not emitted for it alone. */
+function withoutInlineBaseline(props: CssProps): CssProps {
+  const rest = { ...props }
+  for (const prop of Object.keys(BORDER_BOX)) delete rest[prop]
+  return rest
+}
+
 /** One `@media (max-width: ...)` rule per block that sets `style.mobile`, for the same
  * reason buildHoverCss exists. The constructor's preview merges `style.mobile` into the
  * base style instead and does not use this. */
@@ -276,7 +343,7 @@ export function buildResponsiveCss(root: BlockNode): string {
       return
     }
     if ('style' in node && node.style?.mobile) {
-      const props = cssPropsForNodeType(node.type, node.style.mobile)
+      const props = withoutInlineBaseline(cssPropsForNodeType(node.type, node.style.mobile))
       const declarations = Object.entries(props)
         .map(([prop, value]) => `${camelToKebab(prop)}: ${value} !important`)
         .join('; ')
@@ -285,7 +352,7 @@ export function buildResponsiveCss(root: BlockNode): string {
       }
     }
     if (node.type === 'pagination' && node.activeStyle?.mobile) {
-      const props = baseCssProps(node.activeStyle.mobile)
+      const props = withoutInlineBaseline(baseCssProps(node.activeStyle.mobile))
       const declarations = Object.entries(props)
         .map(([prop, value]) => `${camelToKebab(prop)}: ${value} !important`)
         .join('; ')

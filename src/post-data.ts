@@ -1,4 +1,4 @@
-import type { DataBindingKey } from './template-schema'
+import { DATE_FORMATS, DEFAULT_DATE_FORMAT, type DataBindingKey, type DateFormat } from './template-schema'
 
 export interface PostHeading {
   id: string
@@ -179,8 +179,66 @@ function resolvePostUrl(post: PublicPost, template?: string): string {
   return template.replace('{slug}', encodeURIComponent(post.slug))
 }
 
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const MONTHS_LONG = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+]
+
+const pad = (n: number) => String(n).padStart(2, '0')
+
+/** Built from UTC parts, not toLocaleDateString, whose ICU tables differ host to host. */
+export function formatPostDate(value: string, format: DateFormat = DEFAULT_DATE_FORMAT): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const year = date.getUTCFullYear()
+  const month = date.getUTCMonth()
+  const day = date.getUTCDate()
+
+  switch (format) {
+    case 'long':
+      return `${MONTHS_LONG[month]} ${day}, ${year}`
+    case 'dayMonthYear':
+      return `${day} ${MONTHS_LONG[month]} ${year}`
+    case 'monthDayYearSlash':
+      return `${pad(month + 1)}/${pad(day)}/${year}`
+    case 'dayMonthYearSlash':
+      return `${pad(day)}/${pad(month + 1)}/${year}`
+    case 'monthDayYearDash':
+      return `${pad(month + 1)}-${pad(day)}-${year}`
+    case 'iso':
+      return `${year}-${pad(month + 1)}-${pad(day)}`
+    case 'medium':
+    default:
+      return `${MONTHS_SHORT[month]} ${day}, ${year}`
+  }
+}
+
+/** Fixed, so server and client agree. The 17th tells 03/17 from 17/03 apart. */
+export const DATE_FORMAT_SAMPLE = '2026-03-17T00:00:00.000Z'
+
+/** Every format with the example the picker shows for it. */
+export function dateFormatOptions(sample: string = DATE_FORMAT_SAMPLE): { value: DateFormat; example: string }[] {
+  return DATE_FORMATS.map((value) => ({ value, example: formatPostDate(sample, value) }))
+}
+
 /** Resolves a fixed DataBindingKey against a post. Never evaluates the key as code - it's an enum, matched by a switch. */
-export function resolveBinding(key: DataBindingKey, ctx: BindingContext): string {
+export function resolveBinding(
+  key: DataBindingKey,
+  ctx: BindingContext,
+  options?: { dateFormat?: DateFormat }
+): string {
   switch (key) {
     case 'post.title':
       return ctx.post.title ?? ''
@@ -190,17 +248,8 @@ export function resolveBinding(key: DataBindingKey, ctx: BindingContext): string
       return ctx.post.excerpt ?? buildExcerpt(ctx.post.content)
     case 'post.coverImage':
       return extractCoverImage(ctx.post.content)
-    case 'post.publishedAt': {
-      if (!ctx.post.published_at) return ''
-      const date = new Date(ctx.post.published_at)
-      if (Number.isNaN(date.getTime())) return ''
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        timeZone: 'UTC',
-      })
-    }
+    case 'post.publishedAt':
+      return ctx.post.published_at ? formatPostDate(ctx.post.published_at, options?.dateFormat) : ''
     case 'post.url':
       return resolvePostUrl(ctx.post, ctx.postUrlTemplate)
     default: {

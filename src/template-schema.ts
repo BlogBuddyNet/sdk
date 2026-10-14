@@ -34,15 +34,15 @@ const baseBlockStyleSchema = z
     colorOpacity: z.number().min(0).max(100),
     backgroundOpacity: z.number().min(0).max(100),
     padding: z.number().min(0).max(200),
-    margin: z.number().min(0).max(200),
+    margin: z.number().min(-200).max(200),
     paddingTop: z.number().min(0).max(200),
     paddingRight: z.number().min(0).max(200),
     paddingBottom: z.number().min(0).max(200),
     paddingLeft: z.number().min(0).max(200),
-    marginTop: z.number().min(0).max(200),
-    marginRight: z.number().min(0).max(200),
-    marginBottom: z.number().min(0).max(200),
-    marginLeft: z.number().min(0).max(200),
+    marginTop: z.number().min(-200).max(200),
+    marginRight: z.number().min(-200).max(200),
+    marginBottom: z.number().min(-200).max(200),
+    marginLeft: z.number().min(-200).max(200),
     gap: z.number().min(0).max(200),
     fontSize: z.number().min(8).max(96),
     fontWeight: fontWeightSchema,
@@ -65,9 +65,32 @@ const baseBlockStyleSchema = z
     alignSelf: z.enum(['start', 'center', 'end', 'stretch']),
     pushToEnd: z.boolean(),
     objectFit: z.enum(['cover', 'contain', 'fill', 'none']),
-    aspectRatio: z.enum(['1/1', '4/3', '16/9', '3/4', '21/9']),
+    aspectRatio: z.enum(['1/1', '4/3', '3/2', '16/9', '3/4', '21/9']),
     opacity: z.number().min(0).max(100),
     boxShadow: z.enum(['none', 'sm', 'md', 'lg', 'xl']),
+    lineHeight: z.number().min(0.8).max(3),
+    /** In em, so it tracks the font size rather than fighting it. */
+    letterSpacing: z.number().min(-0.2).max(1),
+    textDecoration: z.enum(['none', 'underline']),
+    noWrap: z.boolean(),
+    width: z.number().min(0).max(4000),
+    widthUnit: z.enum(['px', 'percent', 'fit']),
+    maxWidth: z.number().min(0).max(4000),
+    minHeight: z.number().min(0).max(4000),
+    /** Centres a block that has a max width, which no margin number can express. */
+    centerHorizontally: z.boolean(),
+    borderWidthTop: z.number().min(0).max(20),
+    borderWidthRight: z.number().min(0).max(20),
+    borderWidthBottom: z.number().min(0).max(20),
+    borderWidthLeft: z.number().min(0).max(20),
+    /** How a block shares a row: keep its own size, take what is left, or hold a share. */
+    flexMode: z.enum(['auto', 'grow', 'fixed']),
+    /** The share, as a percentage, when flexMode is 'fixed'. */
+    flexBasis: z.number().min(0).max(100),
+    /** 'fill' covers the parent and sits behind its siblings; 'front' sits above them. */
+    layer: z.enum(['fill', 'front']),
+    clip: z.boolean(),
+    translateY: z.number().min(-40).max(40),
     customCss: customCssSchema,
   })
   .partial()
@@ -91,9 +114,29 @@ export type DataBindingKey = z.infer<typeof dataBindingKeySchema>
 
 const MAX_LITERAL_TEXT = 2000
 
+/** How `post.publishedAt` is written out. Ignored by every other binding. */
+export const DATE_FORMATS = [
+  'medium',
+  'long',
+  'dayMonthYear',
+  'monthDayYearSlash',
+  'dayMonthYearSlash',
+  'monthDayYearDash',
+  'iso',
+] as const
+export const dateFormatSchema = z.enum(DATE_FORMATS)
+export type DateFormat = z.infer<typeof dateFormatSchema>
+
+/** What the date looked like before the setting existed, so leaving it unset changes nothing. */
+export const DEFAULT_DATE_FORMAT: DateFormat = 'medium'
+
 export const textContentSchema = z.discriminatedUnion('source', [
   z.object({ source: z.literal('literal'), value: z.string().max(MAX_LITERAL_TEXT) }),
-  z.object({ source: z.literal('binding'), binding: dataBindingKeySchema }),
+  z.object({
+    source: z.literal('binding'),
+    binding: dataBindingKeySchema,
+    dateFormat: dateFormatSchema.optional(),
+  }),
 ])
 export type TextContent = z.infer<typeof textContentSchema>
 

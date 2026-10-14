@@ -1,6 +1,6 @@
 {
   "name": "@blogbuddy/sdk",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Render a BlogBuddy blog on your own site: server components, React hooks, and SEO helpers.",
   "license": "MIT",
   "author": "BlogBuddy (https://blogbuddy.net)",

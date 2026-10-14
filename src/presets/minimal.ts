@@ -1,13 +1,11 @@
 import type { TemplateDocument } from '../template-schema'
 import { CURRENT_SCHEMA_VERSION } from '../template-schema'
 
-const INK = '#14110c'
-const MUTED = '#7c766a'
-const RULE = '#e7e3db'
+const INK = '#000000'
+const BODY = '#525252'
+const MUTED = '#7c7c7c'
+const RULE = '#dadada'
 const PAPER = '#ffffff'
-
-/** Centres a column and gives it a real measure, which no structured style prop does. */
-const COLUMN = 'max-width: 720px; margin-left: auto; margin-right: auto; width: 100%'
 
 export const minimalList: TemplateDocument = {
   schemaVersion: CURRENT_SCHEMA_VERSION,
@@ -22,28 +20,17 @@ export const minimalList: TemplateDocument = {
         id: 'min-shell',
         style: {
           direction: 'column',
-          paddingTop: 88,
-          paddingBottom: 88,
+          paddingTop: 64,
+          paddingBottom: 64,
           paddingLeft: 28,
           paddingRight: 28,
-          customCss: COLUMN,
-          mobile: { paddingTop: 48, paddingBottom: 48 },
+          maxWidth: 900,
+          centerHorizontally: true,
+          width: 100,
+          widthUnit: 'percent',
+          mobile: { paddingTop: 36, paddingBottom: 40, paddingLeft: 18, paddingRight: 18 },
         },
         children: [
-          {
-            type: 'heading',
-            id: 'min-masthead',
-            style: { fontSize: 15, fontWeight: 600, customCss: 'letter-spacing: 0.16em; text-transform: uppercase' },
-            level: 1,
-            content: { source: 'literal', value: 'Writing' },
-          },
-          {
-            type: 'text',
-            id: 'min-masthead-sub',
-            style: { fontSize: 15, color: MUTED, marginTop: 10, customCss: 'line-height: 1.6; max-width: 46ch' },
-            content: { source: 'literal', value: 'Notes, essays and the occasional changelog.' },
-          },
-          { type: 'spacer', id: 'min-masthead-gap', size: 24 },
           {
             type: 'postListLoop',
             id: 'min-loop',
@@ -53,45 +40,47 @@ export const minimalList: TemplateDocument = {
               id: 'min-row',
               style: {
                 direction: 'column',
-                gap: 9,
                 paddingTop: 34,
                 paddingBottom: 34,
-                borderRadius: 10,
-                customCss: `border-bottom: 1px solid ${RULE}; transition: background 0.15s ease`,
-                hover: { customCss: 'background: rgba(20, 17, 12, 0.028)' },
+                paddingLeft: 20,
+                paddingRight: 20,
+                borderWidthBottom: 1,
+                borderColor: RULE,
+                mobile: { paddingLeft: 0, paddingRight: 0 },
               },
               children: [
                 {
                   type: 'text',
                   id: 'min-row-date',
-                  style: {
-                    fontSize: 12,
-                    color: MUTED,
-                    customCss: 'letter-spacing: 0.1em; text-transform: uppercase',
-                  },
+                  style: { fontSize: 15, color: MUTED, lineHeight: 1.4 },
                   content: { source: 'binding', binding: 'post.publishedAt' },
                 },
                 {
                   type: 'heading',
                   id: 'min-row-title',
                   style: {
-                    fontSize: 27,
-                    fontWeight: 600,
+                    fontSize: 34,
+                    fontWeight: 700,
+                    marginTop: 14,
                     lineClamp: 2,
-                    customCss: 'letter-spacing: -0.022em; line-height: 1.22',
-                    mobile: { fontSize: 22 },
+                    letterSpacing: -0.022,
+                    lineHeight: 1.2,
+                    mobile: { fontSize: 25 },
                   },
                   level: 2,
                   content: { source: 'binding', binding: 'post.title' },
+                  clickAction: { href: { source: 'binding', binding: 'post.url' } },
                 },
                 {
                   type: 'text',
                   id: 'min-row-excerpt',
                   style: {
-                    fontSize: 15,
-                    color: '#5f594e',
-                    lineClamp: 2,
-                    customCss: 'line-height: 1.65; max-width: 62ch',
+                    fontSize: 19,
+                    color: BODY,
+                    marginTop: 16,
+                    lineClamp: 3,
+                    lineHeight: 1.55,
+                    mobile: { fontSize: 16 },
                   },
                   content: { source: 'binding', binding: 'post.excerpt' },
                 },
@@ -99,13 +88,14 @@ export const minimalList: TemplateDocument = {
                   type: 'button',
                   id: 'min-row-link',
                   style: {
-                    fontSize: 14,
+                    fontSize: 15,
                     fontWeight: 500,
                     color: INK,
-                    marginTop: 4,
-                    customCss: 'border-bottom: 1px solid currentColor; padding-bottom: 2px',
+                    marginTop: 20,
+                    textDecoration: 'underline',
+                    hover: { color: MUTED },
                   },
-                  label: { source: 'literal', value: 'Read' },
+                  label: { source: 'literal', value: 'Read More' },
                   href: { source: 'binding', binding: 'post.url' },
                 },
               ],
@@ -124,7 +114,7 @@ export const minimalList: TemplateDocument = {
               borderColor: RULE,
               borderRadius: 9,
               padding: 9,
-              hover: { borderColor: '#c9c2b5' },
+              hover: { borderColor: '#9a9a9a' },
             },
             activeStyle: { background: INK, color: PAPER, borderColor: INK },
             postsPerPage: 10,
@@ -149,29 +139,33 @@ export const minimalPost: TemplateDocument = {
         id: 'min-shell',
         style: {
           direction: 'column',
-          paddingTop: 88,
-          paddingBottom: 96,
+          paddingTop: 72,
+          paddingBottom: 88,
           paddingLeft: 28,
           paddingRight: 28,
-          customCss: COLUMN,
-          mobile: { paddingTop: 48, paddingBottom: 56 },
+          maxWidth: 760,
+          centerHorizontally: true,
+          width: 100,
+          widthUnit: 'percent',
+          mobile: { paddingTop: 36, paddingBottom: 48, paddingLeft: 18, paddingRight: 18 },
         },
         children: [
           {
             type: 'text',
             id: 'min-date',
-            style: { fontSize: 12, color: MUTED, customCss: 'letter-spacing: 0.1em; text-transform: uppercase' },
+            style: { fontSize: 15, color: MUTED },
             content: { source: 'binding', binding: 'post.publishedAt' },
           },
           {
             type: 'heading',
             id: 'min-title',
             style: {
-              fontSize: 46,
+              fontSize: 44,
               fontWeight: 700,
               marginTop: 14,
-              customCss: 'letter-spacing: -0.033em; line-height: 1.08; max-width: 18ch',
-              mobile: { fontSize: 32 },
+              letterSpacing: -0.026,
+              lineHeight: 1.14,
+              mobile: { fontSize: 30 },
             },
             level: 1,
             content: { source: 'binding', binding: 'post.title' },
@@ -180,52 +174,47 @@ export const minimalPost: TemplateDocument = {
             type: 'text',
             id: 'min-standfirst',
             style: {
-              fontSize: 19,
-              color: '#5f594e',
+              fontSize: 20,
+              color: BODY,
               marginTop: 18,
-              customCss: 'line-height: 1.55; max-width: 54ch',
+              lineHeight: 1.55,
               mobile: { fontSize: 17 },
             },
             content: { source: 'binding', binding: 'post.excerpt' },
           },
-          { type: 'spacer', id: 'min-gap-cover', size: 40 },
           {
             type: 'image',
             id: 'min-cover',
-            style: { borderRadius: 10, aspectRatio: '16/9', objectFit: 'cover' },
+            style: { marginTop: 36, aspectRatio: '16/9', objectFit: 'cover', borderRadius: 4 },
             source: { source: 'binding', binding: 'post.coverImage' },
             alt: '',
           },
-          { type: 'spacer', id: 'min-gap-body', size: 40 },
+          { type: 'divider', id: 'min-rule', style: { marginTop: 36, borderColor: RULE } },
           {
             type: 'richContent',
             id: 'min-body',
-            style: { fontSize: 17, customCss: 'line-height: 1.78' },
+            style: { fontSize: 18, marginTop: 32, lineHeight: 1.75 },
           },
           {
             type: 'carousel',
             id: 'min-gallery',
-            style: { marginTop: 40 },
+            style: { marginTop: 36 },
             imageSize: 'medium',
             navigation: 'arrows',
           },
-          {
-            type: 'divider',
-            id: 'min-rule',
-            style: { marginTop: 56, borderColor: RULE },
-          },
+          { type: 'divider', id: 'min-rule-end', style: { marginTop: 56, borderColor: RULE } },
           {
             type: 'heading',
             id: 'min-more-label',
             style: {
-              fontSize: 12,
+              fontSize: 15,
               fontWeight: 600,
               color: MUTED,
-              marginTop: 40,
-              customCss: 'letter-spacing: 0.14em; text-transform: uppercase',
+              marginTop: 32,
+              letterSpacing: 0.02,
             },
             level: 2,
-            content: { source: 'literal', value: 'Keep reading' },
+            content: { source: 'literal', value: 'More posts' },
           },
           {
             type: 'relatedPosts',

@@ -3,7 +3,7 @@ import type { BlockNode, CustomFontRef, ImageSource, Link, TemplateDocument, Tex
 import { extractGalleryImages, resolveBinding, type PaginationRenderState, type PublicPost } from './post-data'
 import { PaginationNav } from './pagination-nav'
 import { CarouselStrip } from './carousel-strip'
-import { baseCssProps, buildFontFaceCss, buildHoverCss, buildResponsiveCss, buttonCssProps, CAROUSEL_DEFAULT_GAP, CAROUSEL_IMAGE_WIDTHS, carouselCssProps, containerCssProps, imageCssProps, RICH_CONTENT_CSS } from './style-utils'
+import { baseCssProps, BORDER_BOX, buildFontFaceCss, buildHoverCss, buildResponsiveCss, buttonCssProps, CAROUSEL_DEFAULT_GAP, CAROUSEL_IMAGE_WIDTHS, carouselCssProps, containerCssProps, imageCssProps, RICH_CONTENT_CSS } from './style-utils'
 
 interface RenderContext {
   posts: PublicPost[]
@@ -27,7 +27,11 @@ interface RenderContext {
 function resolveText(content: TextContent, ctx: RenderContext): string {
   if (content.source === 'literal') return content.value
   if (!ctx.currentPost) return ''
-  return resolveBinding(content.binding, { post: ctx.currentPost, postUrlTemplate: ctx.postUrlTemplate })
+  return resolveBinding(
+    content.binding,
+    { post: ctx.currentPost, postUrlTemplate: ctx.postUrlTemplate },
+    { dateFormat: content.dateFormat }
+  )
 }
 
 function resolveUrl(ref: Link | ImageSource, ctx: RenderContext): string {
@@ -106,13 +110,14 @@ function renderNodeInner(node: BlockNode, ctx: RenderContext): React.ReactNode {
   switch (node.type) {
     case 'container': {
       const overlay = clickOverlay(node, ctx)
+      const holdsLayer = node.children.some((child) => 'style' in child && child.style?.layer === 'fill')
       return (
         <div
           key={node.id}
           data-node-id={node.id}
           style={{
             ...containerCssProps(node.style),
-            ...(overlay ? { position: 'relative' as const } : {}),
+            ...(overlay || holdsLayer ? { position: 'relative' as const } : {}),
           }}
         >
           {node.children.map((child) => renderNode(child, ctx))}
@@ -252,6 +257,7 @@ function renderNodeInner(node: BlockNode, ctx: RenderContext): React.ReactNode {
       const images = extractGalleryImages(ctx.currentPost?.content)
       if (images.length === 0) return null
       const { box, photo } = carouselCssProps(node.style)
+      const boxStyle = { ...BORDER_BOX, ...box }
       return (
         <CarouselStrip
           key={node.id}
@@ -259,7 +265,7 @@ function renderNodeInner(node: BlockNode, ctx: RenderContext): React.ReactNode {
           images={images}
           imageWidth={CAROUSEL_IMAGE_WIDTHS[node.imageSize]}
           gap={node.style.gap ?? CAROUSEL_DEFAULT_GAP}
-          style={box}
+          style={boxStyle}
           photoStyle={photo}
           navigation={node.navigation ?? 'arrows'}
           altPrefix={ctx.currentPost?.title ? `${ctx.currentPost.title}, ` : ''}
