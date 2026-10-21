@@ -128,7 +128,8 @@ export function useBlogBuddy({
  * Fetches a single published post by slug, and records the view once it arrives.
  *
  * Pass `countViews: false` for a preview or your own admin view of a page, where a read
- * is not a reader.
+ * is not a reader, or `referrer: false` to count the view without sending where the
+ * reader came from.
  */
 export function useBlogBuddyPost({
   blog,
@@ -136,15 +137,16 @@ export function useBlogBuddyPost({
   apiKey,
   baseUrl = DEFAULT_BASE_URL,
   countViews = true,
-}: BlogBuddyClientOptions & { slug: string; countViews?: boolean }): FetchState<PublicPost> {
+  referrer = true,
+}: BlogBuddyClientOptions & { slug: string; countViews?: boolean; referrer?: boolean }): FetchState<PublicPost> {
   const url = blog && slug ? `${baseUrl}/api/v1/posts/${encodeURIComponent(slug)}?blog=${encodeURIComponent(blog)}` : null
   const state = useJsonFetch<PublicPost>(url, apiKey)
 
   const arrived = Boolean(state.data) && !state.loading && !state.error
   useEffect(() => {
     if (!countViews || !arrived) return
-    void recordView({ blog, slug, apiKey, baseUrl })
-  }, [countViews, arrived, blog, slug, apiKey, baseUrl])
+    void recordView({ blog, slug, apiKey, baseUrl, referrer })
+  }, [countViews, arrived, blog, slug, apiKey, baseUrl, referrer])
 
   return state
 }

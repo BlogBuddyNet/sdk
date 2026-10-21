@@ -17,11 +17,21 @@ export interface ViewBeaconOptions {
   apiKey: string
   /** Override to point at a preview deployment or a self-hosted install. */
   baseUrl?: string
+  /** Send the page the reader arrived from, for the Sources panel in Analytics. Only
+   * the site is recorded, never the full address. Defaults to true; set false to send
+   * nothing. */
+  referrer?: boolean
 }
 
 /** Records one view. Safe to call repeatedly: the first call wins for this document and
  * the server dedupes across visits. Never throws. */
-export async function recordView({ blog, slug, apiKey, baseUrl = DEFAULT_BASE_URL }: ViewBeaconOptions): Promise<void> {
+export async function recordView({
+  blog,
+  slug,
+  apiKey,
+  baseUrl = DEFAULT_BASE_URL,
+  referrer = true,
+}: ViewBeaconOptions): Promise<void> {
   if (!blog || !slug || !apiKey) return
 
   const key = `${baseUrl}|${blog}|${slug}`
@@ -33,7 +43,10 @@ export async function recordView({ blog, slug, apiKey, baseUrl = DEFAULT_BASE_UR
   try {
     const res = await fetch(url, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        referrer: referrer && typeof document !== 'undefined' ? document.referrer : '',
+      }),
       keepalive: true,
     })
 
@@ -50,11 +63,11 @@ export async function recordView({ blog, slug, apiKey, baseUrl = DEFAULT_BASE_UR
  * renders nothing.
  */
 export function BlogBuddyViewBeacon(props: ViewBeaconOptions) {
-  const { blog, slug, apiKey, baseUrl = DEFAULT_BASE_URL } = props
+  const { blog, slug, apiKey, baseUrl = DEFAULT_BASE_URL, referrer = true } = props
 
   useEffect(() => {
-    void recordView({ blog, slug, apiKey, baseUrl })
-  }, [blog, slug, apiKey, baseUrl])
+    void recordView({ blog, slug, apiKey, baseUrl, referrer })
+  }, [blog, slug, apiKey, baseUrl, referrer])
 
   return null
 }

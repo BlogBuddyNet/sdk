@@ -248,6 +248,7 @@ export async function BlogBuddyPost({
   expanded = true,
   jsonLd = true,
   countViews = true,
+  referrer = true,
   breadcrumbHome,
   onNotFound,
   ...options
@@ -266,6 +267,10 @@ export async function BlogBuddyPost({
    * keep it server-side, or for a preview route where a read is not a reader.
    */
   countViews?: boolean
+  /** Send the page the reader arrived from, for the Sources panel in Analytics. Only
+   * the site is recorded, never the full address. On by default; set false to count the
+   * view without it. */
+  referrer?: boolean
   /** Label for the site root in the breadcrumb trail, e.g. "Acme". Omitted, the trail
    * starts at the blog. */
   breadcrumbHome?: string
@@ -325,6 +330,7 @@ export async function BlogBuddyPost({
           slug={options.slug}
           apiKey={options.apiKey}
           baseUrl={options.baseUrl}
+          referrer={referrer}
         />
       ) : null}
       {jsonLd && seo.siteUrl ? (
