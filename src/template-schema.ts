@@ -18,12 +18,61 @@ const fontFamilySchema = z
   .max(60)
   .regex(/^[a-zA-Z0-9 _-]+$/, 'Font family name can only contain letters, numbers, spaces, hyphens, and underscores')
 
-export const DISALLOWED_CUSTOM_CSS_PATTERN = /<|>|[{}]|@import|expression\(|-moz-binding|behavior\s*:/i
+export const DISALLOWED_CUSTOM_CSS_PATTERN = /<|>|@import|expression\(|-moz-binding|behavior\s*:/i
+
+/**
+ * The width test in a `@container` block, and the only thing one may contain.
+ *
+ * Narrow by design. Custom CSS is the single place a block says how it behaves at
+ * another size, and a block's condition is the one part of it that is not re-written
+ * by us before it reaches a stylesheet - so it is matched against this rather than
+ * trusted. `(max-width: 560px)`, `(min-width: 40rem)`, or several joined by `and`.
+ */
+export const CUSTOM_CSS_CONDITION_PATTERN =
+  /^\(\s*(?:min|max)-width\s*:\s*\d{1,5}(?:px|rem|em)\s*\)(?:\s*and\s*\(\s*(?:min|max)-width\s*:\s*\d{1,5}(?:px|rem|em)\s*\))*$/i
+
+/** `@container (max-width: 560px) { ... }`. `@media` is accepted as a spelling of the
+ * same thing: the design is a box inside somebody else's page, so the width that
+ * matters is its own, and a rule about the window would not survive being embedded. */
+export const CUSTOM_CSS_BLOCK_PATTERN = /@(?:container|media)([^{]*)\{([^{}]*)\}/gi
+
+/**
+ * What is wrong with this custom CSS, or null.
+ *
+ * Braces are allowed now, for `@container` blocks and nothing else - which is what
+ * makes them safe to allow: the block's declarations are parsed into property/value
+ * pairs and written back out by us, so nothing a customer types reaches a stylesheet
+ * as text. A brace left over once the blocks are removed is a selector, a nested rule
+ * or an attempt to close one of ours, and is refused.
+ */
+export function customCssProblem(value: string): string | null {
+  if (DISALLOWED_CUSTOM_CSS_PATTERN.test(value)) {
+    return 'Remove the disallowed part (@import, expression(), or an HTML tag).'
+  }
+  let remainder = value
+  // A fresh regex each time: the shared one carries /g, and a /g regex remembers where
+  // it stopped - so a second validation of the same string would start from the end of
+  // the first and find no blocks at all.
+  const pattern = new RegExp(CUSTOM_CSS_BLOCK_PATTERN.source, 'gi')
+  let match = pattern.exec(value)
+  while (match) {
+    const condition = match[1].trim()
+    if (!CUSTOM_CSS_CONDITION_PATTERN.test(condition)) {
+      return `"${condition}" is not a width - write @container (max-width: 560px) { ... }`
+    }
+    remainder = remainder.replace(match[0], '')
+    match = pattern.exec(value)
+  }
+  if (/[{}]/.test(remainder)) {
+    return 'Braces are only for a @container block.'
+  }
+  return null
+}
 
 const customCssSchema = z
   .string()
   .max(2000)
-  .refine((value) => !DISALLOWED_CUSTOM_CSS_PATTERN.test(value), {
+  .refine((value) => customCssProblem(value) === null, {
     message: 'Custom CSS contains disallowed content',
   })
 
@@ -95,9 +144,12 @@ const baseBlockStyleSchema = z
   })
   .partial()
 
+/** No second set of values for a smaller screen: a block has one of each, and a design
+ * that behaves differently at another width says so in its own Custom CSS, in a
+ * `@container` block. Two sets meant every number had two places to be wrong, and the
+ * panel had to be put into a mode before one of them could even be seen. */
 export const blockStyleSchema = baseBlockStyleSchema.extend({
   hover: baseBlockStyleSchema.optional(),
-  mobile: baseBlockStyleSchema.optional(),
 })
 
 export type BlockStyle = z.infer<typeof blockStyleSchema>
@@ -188,6 +240,7 @@ export interface ClickAction {
 export interface ContainerNode {
   type: 'container'
   id: string
+  hidden?: boolean
   style: BlockStyle
   children: BlockNode[]
   clickAction?: ClickAction
@@ -196,6 +249,7 @@ export interface ContainerNode {
 export interface HeadingNode {
   type: 'heading'
   id: string
+  hidden?: boolean
   style: BlockStyle
   level: 1 | 2 | 3 | 4
   content: TextContent
@@ -205,6 +259,7 @@ export interface HeadingNode {
 export interface TextNode {
   type: 'text'
   id: string
+  hidden?: boolean
   style: BlockStyle
   content: TextContent
   clickAction?: ClickAction
@@ -213,6 +268,7 @@ export interface TextNode {
 export interface ImageNode {
   type: 'image'
   id: string
+  hidden?: boolean
   style: BlockStyle
   source: ImageSource
   alt: string
@@ -222,6 +278,7 @@ export interface ImageNode {
 export interface ButtonNode {
   type: 'button'
   id: string
+  hidden?: boolean
   style: BlockStyle
   label: TextContent
   href: Link
@@ -230,12 +287,14 @@ export interface ButtonNode {
 export interface SpacerNode {
   type: 'spacer'
   id: string
+  hidden?: boolean
   size: number
 }
 
 export interface PostListLoopNode {
   type: 'postListLoop'
   id: string
+  hidden?: boolean
   style: BlockStyle
   itemTemplate: BlockNode
 }
@@ -243,6 +302,7 @@ export interface PostListLoopNode {
 export interface PaginationNode {
   type: 'pagination'
   id: string
+  hidden?: boolean
   style: BlockStyle
   postsPerPage: number
   mode: 'numbered' | 'loadMore'
@@ -252,18 +312,21 @@ export interface PaginationNode {
 export interface RichContentNode {
   type: 'richContent'
   id: string
+  hidden?: boolean
   style: BlockStyle
 }
 
 export interface DividerNode {
   type: 'divider'
   id: string
+  hidden?: boolean
   style: BlockStyle
 }
 
 export interface TableOfContentsNode {
   type: 'tableOfContents'
   id: string
+  hidden?: boolean
   style: BlockStyle
 }
 
@@ -287,6 +350,7 @@ export const MAX_RELATED_POSTS = 3
 export interface RelatedPostsNode {
   type: 'relatedPosts'
   id: string
+  hidden?: boolean
   style: BlockStyle
   source?: RelatedPostsSource
   order?: RelatedPostsOrder
@@ -307,6 +371,7 @@ export type CarouselNavigation = (typeof CAROUSEL_NAVIGATIONS)[number]
 export interface CarouselNode {
   type: 'carousel'
   id: string
+  hidden?: boolean
   style: BlockStyle
   imageSize: CarouselImageSize
   /** Optional so a carousel saved before this field existed keeps rendering - it reads
@@ -331,9 +396,15 @@ export type BlockNode =
 
 const nodeIdSchema = z.string().min(1).max(64)
 
+/** Hidden blocks stay in the document and render nowhere - the constructor's eye
+ * control. Deliberately not a style: `display: none` would still be a block that
+ * exists in the markup, and the point is that it takes no space and costs nothing. */
+const hiddenSchema = z.boolean().optional()
+
 const headingSchema = z.object({
   type: z.literal('heading'),
   id: nodeIdSchema,
+  hidden: hiddenSchema,
   style: blockStyleSchema,
   level: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
   content: textContentSchema,
@@ -343,6 +414,7 @@ const headingSchema = z.object({
 const textSchema = z.object({
   type: z.literal('text'),
   id: nodeIdSchema,
+  hidden: hiddenSchema,
   style: blockStyleSchema,
   content: textContentSchema,
   clickAction: clickActionSchema,
@@ -351,6 +423,7 @@ const textSchema = z.object({
 const imageSchema = z.object({
   type: z.literal('image'),
   id: nodeIdSchema,
+  hidden: hiddenSchema,
   style: blockStyleSchema,
   source: imageSourceSchema,
   alt: z.string().max(200),
@@ -360,6 +433,7 @@ const imageSchema = z.object({
 const buttonSchema = z.object({
   type: z.literal('button'),
   id: nodeIdSchema,
+  hidden: hiddenSchema,
   style: blockStyleSchema,
   label: textContentSchema,
   href: linkSchema,
@@ -368,30 +442,35 @@ const buttonSchema = z.object({
 const spacerSchema = z.object({
   type: z.literal('spacer'),
   id: nodeIdSchema,
+  hidden: hiddenSchema,
   size: z.number().min(0).max(200),
 })
 
 const richContentSchema = z.object({
   type: z.literal('richContent'),
   id: nodeIdSchema,
+  hidden: hiddenSchema,
   style: blockStyleSchema,
 })
 
 const dividerSchema = z.object({
   type: z.literal('divider'),
   id: nodeIdSchema,
+  hidden: hiddenSchema,
   style: blockStyleSchema,
 })
 
 const tableOfContentsSchema = z.object({
   type: z.literal('tableOfContents'),
   id: nodeIdSchema,
+  hidden: hiddenSchema,
   style: blockStyleSchema,
 })
 
 const relatedPostsSchema = z.object({
   type: z.literal('relatedPosts'),
   id: nodeIdSchema,
+  hidden: hiddenSchema,
   style: blockStyleSchema,
   source: z.enum(RELATED_POSTS_SOURCES).optional(),
   order: z.enum(RELATED_POSTS_ORDERS).optional(),
@@ -400,6 +479,7 @@ const relatedPostsSchema = z.object({
 const carouselSchema = z.object({
   type: z.literal('carousel'),
   id: nodeIdSchema,
+  hidden: hiddenSchema,
   style: blockStyleSchema,
   imageSize: z.enum(CAROUSEL_IMAGE_SIZES),
   navigation: z.enum(CAROUSEL_NAVIGATIONS).optional(),
@@ -408,6 +488,7 @@ const carouselSchema = z.object({
 const paginationNodeSchema = z.object({
   type: z.literal('pagination'),
   id: nodeIdSchema,
+  hidden: hiddenSchema,
   style: blockStyleSchema,
   postsPerPage: z.number().min(1).max(50),
   mode: z.enum(['numbered', 'loadMore']),
@@ -438,6 +519,7 @@ const containerSchema: z.ZodType<ContainerNode> = z.lazy(() =>
   z.object({
     type: z.literal('container'),
     id: nodeIdSchema,
+    hidden: hiddenSchema,
     style: blockStyleSchema,
     children: z.array(blockNodeSchema).max(MAX_CHILDREN),
     clickAction: clickActionSchema,
@@ -448,6 +530,7 @@ const postListLoopSchema: z.ZodType<PostListLoopNode> = z.lazy(() =>
   z.object({
     type: z.literal('postListLoop'),
     id: nodeIdSchema,
+    hidden: hiddenSchema,
     style: blockStyleSchema,
     itemTemplate: blockNodeSchema,
   })

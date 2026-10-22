@@ -1,4 +1,5 @@
 import type { BlockNode, BlockStyle, CustomFontRef } from './template-schema'
+import { CUSTOM_CSS_BLOCK_PATTERN, CUSTOM_CSS_CONDITION_PATTERN } from './template-schema'
 import { getChildren } from './template-tree-utils'
 
 export type CssProps = Record<string, string | number>
@@ -27,10 +28,45 @@ const BOX_SHADOW_VALUES: Record<NonNullable<BlockStyle['boxShadow']>, string> = 
 
 /** Parses a `style.customCss` string into a CssProps map. Declarations only, never
  * selectors, so it can only affect the node it is applied to. */
+/** One `@container` block out of a block's custom CSS: its width test, and the
+ * declarations it applies. */
+export interface CustomCssBlock {
+  condition: string
+  props: CssProps
+}
+
+/** The blocks in a block's custom CSS, with the conditions checked. An unparseable
+ * condition is dropped rather than emitted: the schema refuses to save one, so the only
+ * way to reach this is a document that was written around the constructor. */
+export function parseCustomCssBlocks(customCss?: string): CustomCssBlock[] {
+  if (!customCss) return []
+  const blocks: CustomCssBlock[] = []
+  // A fresh regex: the shared one carries /g, and a /g regex holds its own lastIndex
+  // between calls - so every second read of the same string would start from where the
+  // previous one stopped and find nothing.
+  const pattern = new RegExp(CUSTOM_CSS_BLOCK_PATTERN.source, 'gi')
+  let match = pattern.exec(customCss)
+  while (match) {
+    const condition = match[1].trim()
+    if (CUSTOM_CSS_CONDITION_PATTERN.test(condition)) {
+      const props = parseDeclarations(match[2])
+      if (Object.keys(props).length > 0) blocks.push({ condition, props })
+    }
+    match = pattern.exec(customCss)
+  }
+  return blocks
+}
+
+/** The declarations outside any block - the ones that apply at every width, and go
+ * straight onto the element. */
 export function parseCustomCss(customCss?: string): CssProps {
+  if (!customCss) return {}
+  return parseDeclarations(customCss.replace(new RegExp(CUSTOM_CSS_BLOCK_PATTERN.source, 'gi'), ''))
+}
+
+function parseDeclarations(source: string): CssProps {
   const props: CssProps = {}
-  if (!customCss) return props
-  for (const declaration of customCss.split(';')) {
+  for (const declaration of source.split(';')) {
     const separatorIndex = declaration.indexOf(':')
     if (separatorIndex === -1) continue
     const rawProperty = declaration.slice(0, separatorIndex).trim()
@@ -258,11 +294,36 @@ function cssDeclarations(props: CssProps, important = true): string {
     .join('; ')
 }
 
+/** The narrowest a column may get before the row gives one up. Roughly a phone's
+ * width less its margins: below this a card is narrower than the words in it. */
+export const COLUMN_MIN_PX = 260
+
+/**
+ * `columns: 3` as "three across when there is room for three", not "three across at
+ * every width down to a phone".
+ *
+ * A plain `repeat(3, 1fr)` holds three columns at 900px and at 400px alike, which is
+ * how a three-column list of cards ends up as three slivers. This is the usual grid
+ * idiom instead: each track is at least a readable width and at most its share of the
+ * row, and `auto-fit` drops to however many actually fit. The count becomes a ceiling,
+ * which is what somebody choosing it means - at full width the layout is identical to
+ * what it was.
+ *
+ * The share subtracts the gaps first, or three tracks of exactly a third plus two gaps
+ * would be wider than the row and wrap to two.
+ */
+export function columnTracks(columns: number, gap: number): string {
+  const share = `calc((100% - ${(columns - 1) * gap}px) / ${columns})`
+  // min(100%, …) so a container narrower than one column still gets a track that fits
+  // inside it rather than one that overflows.
+  return `repeat(auto-fit, minmax(max(min(100%, ${COLUMN_MIN_PX}px), ${share}), 1fr))`
+}
+
 export function containerCssProps(style: BlockStyle): CssProps {
   const props = { ...BORDER_BOX, ...coreCssProps(style) }
   if (style.columns !== undefined) {
     props.display = 'grid'
-    props.gridTemplateColumns = `repeat(${style.columns}, minmax(0, 1fr))`
+    props.gridTemplateColumns = columnTracks(style.columns, style.gap ?? 0)
   } else {
     props.display = 'flex'
     props.flexDirection = style.direction === 'row' ? 'row' : 'column'
@@ -299,66 +360,48 @@ export function buttonCssProps(style: BlockStyle): CssProps {
   return { ...props, ...parseCustomCss(style.customCss) }
 }
 
-export const RESPONSIVE_BREAKPOINT_PX = 767
+/** The name on the query container the renderer wraps a template in, so a rule can
+ * only ever match our own box - never a container somebody's own page declares. */
+export const RESPONSIVE_CONTAINER_NAME = 'blogbuddy'
 
-/** The same CSS-prop builder renderNode uses for a node type, so a `style.mobile`
- * override reaches the same fields as the base style - including layout-only ones like
- * `columns`. An unlisted type falls back to baseCssProps. */
-function cssPropsForNodeType(type: BlockNode['type'], style: BlockStyle): CssProps {
-  switch (type) {
-    case 'container':
-    case 'postListLoop':
-      return containerCssProps(style)
-    case 'image':
-      return imageCssProps(style)
-    case 'button':
-      return buttonCssProps(style)
-    default:
-      return baseCssProps(style)
-  }
-}
+/**
+ * Below this width a design uses the `@container` blocks in its custom CSS.
+ *
+ * The width of the design's own box, not the window's: these are container queries.
+ * That is the right question for something embedded in somebody else's page - a
+ * template in a 400px sidebar is narrow whatever size the window is, and a viewport
+ * query called it desktop and overflowed.
+ *
+ * Smaller than the 767px viewport breakpoint it replaces, and for the same reason: 767
+ * was a window width, which usually meant a content column of around 700. As a measure
+ * of the column itself, the question is "is this box too narrow to hold the desktop
+ * type and spacing", and that happens nearer 560.
+ */
+export const RESPONSIVE_BREAKPOINT_PX = 560
 
-/** Drops the baseline every block gets anyway, so a rule is not emitted for it alone. */
-function withoutInlineBaseline(props: CssProps): CssProps {
-  const rest = { ...props }
-  for (const prop of Object.keys(BORDER_BOX)) delete rest[prop]
-  return rest
-}
-
-/** One `@media (max-width: ...)` rule per block that sets `style.mobile`, for the same
- * reason buildHoverCss exists. The constructor's preview merges `style.mobile` into the
- * base style instead and does not use this. */
+/**
+ * The `@container` blocks out of every node's custom CSS, as one stylesheet.
+ *
+ * This is the whole of how a design responds to width now. There used to be a second
+ * set of values per block - `style.mobile` - which meant every number had two places to
+ * be wrong and the Inspector had to be put into a mode before one of them could be
+ * seen. A block has one of each value; where it behaves differently at another width,
+ * it says so in its own CSS, where it can be read.
+ *
+ * `!important` because the base values are inline styles, which a stylesheet cannot
+ * otherwise override.
+ */
 export function buildResponsiveCss(root: BlockNode): string {
   const rules: string[] = []
 
   function visit(node: BlockNode) {
-    if (node.type === 'carousel' && node.style?.mobile) {
+    if ('style' in node && node.style?.customCss) {
       const selector = `[data-node-id="${escapeAttrValue(node.id)}"]`
-      const { box, photo } = carouselCssProps(node.style.mobile)
-      const boxDeclarations = cssDeclarations(box)
-      if (boxDeclarations) rules.push(`${selector} { ${boxDeclarations}; }`)
-      const photoDeclarations = cssDeclarations(photo)
-      if (photoDeclarations) rules.push(`${selector} img { ${photoDeclarations}; }`)
-      for (const child of getChildren(node)) visit(child)
-      return
-    }
-    if ('style' in node && node.style?.mobile) {
-      const props = withoutInlineBaseline(cssPropsForNodeType(node.type, node.style.mobile))
-      const declarations = Object.entries(props)
-        .map(([prop, value]) => `${camelToKebab(prop)}: ${value} !important`)
-        .join('; ')
-      if (declarations) {
-        rules.push(`[data-node-id="${escapeAttrValue(node.id)}"] { ${declarations}; }`)
-      }
-    }
-    if (node.type === 'pagination' && node.activeStyle?.mobile) {
-      const props = withoutInlineBaseline(baseCssProps(node.activeStyle.mobile))
-      const declarations = Object.entries(props)
-        .map(([prop, value]) => `${camelToKebab(prop)}: ${value} !important`)
-        .join('; ')
-      if (declarations) {
+      for (const block of parseCustomCssBlocks(node.style.customCss)) {
+        const declarations = cssDeclarations(block.props)
+        if (!declarations) continue
         rules.push(
-          `[data-node-id="${escapeAttrValue(node.id)}"]:disabled, [data-node-id="${escapeAttrValue(node.id)}"][aria-current="page"] { ${declarations}; }`
+          `@container ${RESPONSIVE_CONTAINER_NAME} ${block.condition} { ${selector} { ${declarations}; } }`
         )
       }
     }
@@ -366,8 +409,7 @@ export function buildResponsiveCss(root: BlockNode): string {
   }
 
   visit(root)
-  if (rules.length === 0) return ''
-  return `@media (max-width: ${RESPONSIVE_BREAKPOINT_PX}px) { ${rules.join('\n')} }`
+  return rules.join('\n')
 }
 
 /** CSS generic families, which must never be quoted: `font-family: "serif"` asks for a

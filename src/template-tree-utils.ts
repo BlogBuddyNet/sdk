@@ -154,9 +154,6 @@ export function clearFontFamilyReferences(root: BlockNode, familyName: string): 
     if (next.hover?.fontFamily === familyName) {
       next = { ...next, hover: { ...next.hover, fontFamily: undefined } }
     }
-    if (next.mobile?.fontFamily === familyName) {
-      next = { ...next, mobile: { ...next.mobile, fontFamily: undefined } }
-    }
     return next
   }
 

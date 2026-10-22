@@ -3,7 +3,7 @@ import type { BlockNode, CustomFontRef, ImageSource, Link, TemplateDocument, Tex
 import { extractGalleryImages, resolveBinding, type PaginationRenderState, type PublicPost } from './post-data'
 import { PaginationNav } from './pagination-nav'
 import { CarouselStrip } from './carousel-strip'
-import { baseCssProps, BORDER_BOX, buildFontFaceCss, buildHoverCss, buildResponsiveCss, buttonCssProps, CAROUSEL_DEFAULT_GAP, CAROUSEL_IMAGE_WIDTHS, carouselCssProps, containerCssProps, imageCssProps, RICH_CONTENT_CSS } from './style-utils'
+import { baseCssProps, BORDER_BOX, buildFontFaceCss, buildHoverCss, buildResponsiveCss, buttonCssProps, CAROUSEL_DEFAULT_GAP, CAROUSEL_IMAGE_WIDTHS, carouselCssProps, containerCssProps, imageCssProps, RESPONSIVE_CONTAINER_NAME, RICH_CONTENT_CSS } from './style-utils'
 
 interface RenderContext {
   posts: PublicPost[]
@@ -18,10 +18,9 @@ interface RenderContext {
   /** Constructor-only: click-action overlays are drawn but not clickable, so the design
    * canvas stays selectable. */
   editing?: boolean
-  /** Constructor-only: merges each block's `style.mobile` into the base style, because
-   * the preview canvas is a div rather than a viewport and no `@media` rule would match
-   * it. Never set this outside the constructor. */
-  simulateMobile?: boolean
+  /** Constructor-only: makes those overlays clickable again, for the canvas's Interact
+   * mode. The constructor decides what a click does; nothing here navigates on its own. */
+  interactive?: boolean
 }
 
 function resolveText(content: TextContent, ctx: RenderContext): string {
@@ -61,11 +60,12 @@ function clickOverlay(node: BlockNode, ctx: RenderContext): React.ReactNode {
       key={`${node.id}-click`}
       href={href}
       aria-label={label}
+      {...(ctx.editing ? { 'data-href-source': action.href.source } : {})}
       style={{
         position: 'absolute',
         inset: 0,
         zIndex: 1,
-        ...(ctx.editing ? { pointerEvents: 'none' as const } : {}),
+        ...(ctx.editing && !ctx.interactive ? { pointerEvents: 'none' as const } : {}),
       }}
     />
   )
@@ -94,6 +94,7 @@ function withClickOverlay(
 }
 
 function renderNode(node: BlockNode, ctx: RenderContext): React.ReactNode {
+  if (node.hidden) return null
   if (node.type !== 'container' && 'clickAction' in node && node.clickAction) {
     return withClickOverlay(node, ctx, renderNodeInner(node, ctx))
   }
@@ -101,12 +102,6 @@ function renderNode(node: BlockNode, ctx: RenderContext): React.ReactNode {
 }
 
 function renderNodeInner(node: BlockNode, ctx: RenderContext): React.ReactNode {
-  if (ctx.simulateMobile && 'style' in node && node.style.mobile) {
-    node = { ...node, style: { ...node.style, ...node.style.mobile } } as BlockNode
-  }
-  if (ctx.simulateMobile && node.type === 'pagination' && node.activeStyle?.mobile) {
-    node = { ...node, activeStyle: { ...node.activeStyle, ...node.activeStyle.mobile } }
-  }
   switch (node.type) {
     case 'container': {
       const overlay = clickOverlay(node, ctx)
@@ -174,6 +169,7 @@ function renderNodeInner(node: BlockNode, ctx: RenderContext): React.ReactNode {
           key={node.id}
           data-node-id={node.id}
           href={href || undefined}
+          {...(ctx.editing ? { 'data-href-source': node.href.source } : {})}
           style={buttonCssProps(node.style)}
         >
           {resolveText(node.label, ctx)}
@@ -309,16 +305,15 @@ export interface TemplateRendererProps {
   blogSlug?: string
   /** Only consumed by the pagination node - see PaginationRenderState in post-data.ts. */
   pagination?: PaginationRenderState
+  /** See `interactive`'s doc comment on RenderContext - constructor-only. */
+  interactive?: boolean
   /** See `editing`'s doc comment on RenderContext - only ever passed by the
    * constructor, so click-action overlays cannot swallow canvas selection clicks. */
   editing?: boolean
-  /** See `simulateMobile`'s doc comment on RenderContext - only ever passed by the
-   * constructor's own live preview, never by a real published page. */
-  simulateMobile?: boolean
 }
 
-export function TemplateRenderer({ document, posts, post, postUrlTemplate, fonts, apiKey, baseUrl, blogSlug, pagination, simulateMobile, editing }: TemplateRendererProps) {
-  const ctx: RenderContext = { posts: posts ?? [], currentPost: post, postUrlTemplate, apiKey, baseUrl, blogSlug, pagination, simulateMobile, editing }
+export function TemplateRenderer({ document, posts, post, postUrlTemplate, fonts, apiKey, baseUrl, blogSlug, pagination, editing, interactive }: TemplateRendererProps) {
+  const ctx: RenderContext = { posts: posts ?? [], currentPost: post, postUrlTemplate, apiKey, baseUrl, blogSlug, pagination, editing, interactive }
   const fontFaceCss = fonts && fonts.length > 0 ? buildFontFaceCss(fonts) : ''
   const hoverCss = buildHoverCss(document.root)
   const responsiveCss = buildResponsiveCss(document.root)
@@ -328,7 +323,16 @@ export function TemplateRenderer({ document, posts, post, postUrlTemplate, fonts
       {hoverCss && <style dangerouslySetInnerHTML={{ __html: hoverCss }} />}
       {responsiveCss && <style dangerouslySetInnerHTML={{ __html: responsiveCss }} />}
       {}
-      <div style={{ width: '100%', boxSizing: 'border-box', opacity: pagination?.loading ? 0.6 : 1, transition: 'opacity 0.15s ease' }}>
+      <div
+        style={{
+          width: '100%',
+          boxSizing: 'border-box',
+          containerType: 'inline-size',
+          containerName: RESPONSIVE_CONTAINER_NAME,
+          opacity: pagination?.loading ? 0.6 : 1,
+          transition: 'opacity 0.15s ease',
+        }}
+      >
         {renderNode(document.root, ctx)}
       </div>
     </>
