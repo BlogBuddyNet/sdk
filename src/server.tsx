@@ -17,39 +17,18 @@ import {
 } from './seo'
 import { buildAtomFeed, buildRssFeed, type FeedOptions } from './feed'
 
-/**
- * Everything the SDK needs, in one object. The SEO fields are fallbacks: Blog settings
- * wins over them.
- *
- *   export const blog = {
- *     blog: 'field-notes',
- *     apiKey: process.env.BLOGBUDDY_API_KEY!,
- *     siteUrl: process.env.NEXT_PUBLIC_SITE_URL!,
- *     postUrlTemplate: '/blog/{slug}',
- *   }
- */
 export type BlogBuddyConfig = BlogBuddyServerOptions & Partial<Omit<SeoSiteConfig, 'postUrlTemplate'>>
 
 export interface BlogBuddyServerOptions {
-  /** The blog's slug, e.g. "engineering-updates". */
   blog: string
-  /** An API key from Dashboard -> API keys. Never sent to the browser by these
-   * components, so a server-side secret is fine here. */
   apiKey: string
-  /** BlogBuddy's origin. Override only when self-hosting. */
   baseUrl?: string
-  /** e.g. "/blog/{slug}" - how this site routes to a post, for "Read more" links.
-   * Defaults to the pattern configured in BlogBuddy's blog settings. */
   postUrlTemplate?: string
-  /** Passed to fetch's Next.js cache options. Defaults to revalidating hourly so a
-   * newly published post appears without a redeploy. */
   revalidate?: number | false
 }
 
 const DEFAULT_REVALIDATE = 3600
 
-/** What /api/v1/blog returns. Every field past `slug` is deliberately named to match
- * SeoSiteConfig, so `seoConfig()` below is a spread rather than a transcription. */
 export interface BlogConfig {
   name: string
   slug: string
@@ -63,8 +42,6 @@ export interface BlogConfig {
   locale: string | null
 }
 
-/** Thrown by every request helper. `status` is the HTTP status, so a 404 can be told
- * apart from a 500 without reading the message. */
 export class BlogBuddyRequestError extends Error {
   readonly status: number
 
@@ -75,7 +52,6 @@ export class BlogBuddyRequestError extends Error {
   }
 }
 
-/** Whether an error is a BlogBuddy request failure with this status. */
 export function isRequestError(error: unknown, status?: number): error is BlogBuddyRequestError {
   if (!(error instanceof Error) || error.name !== 'BlogBuddyRequestError') return false
   return status === undefined || (error as BlogBuddyRequestError).status === status
@@ -101,9 +77,6 @@ async function apiFetch<T>(
   return (await response.json()) as T
 }
 
-/** The blog's configuration, including where it is published on this site. Exported so
- * a `generateMetadata` can build its SeoSiteConfig from the same source the renderer
- * uses, rather than repeating the site URL in two places that can drift apart. */
 export async function getBlogConfig(options: BlogBuddyServerOptions): Promise<BlogConfig> {
   const { data } = await apiFetch<{ data: BlogConfig }>(
     `/api/v1/blog?blog=${encodeURIComponent(options.blog)}`,
@@ -112,12 +85,6 @@ export async function getBlogConfig(options: BlogBuddyServerOptions): Promise<Bl
   return data
 }
 
-/**
- * The resolved SEO config: Blog settings, with your own config filling the gaps.
- *
- * Rarely needed directly, since the components call it themselves. A network failure
- * resolves to your own values rather than throwing.
- */
 export async function seoConfig(config: BlogBuddyConfig): Promise<SeoSiteConfig> {
   const fallback: SeoSiteConfig = {
     siteUrl: config.siteUrl ?? '',
@@ -177,9 +144,6 @@ export interface PostsPage {
   totalPages: number
 }
 
-/** getPosts, but also returning how many pages there are - what a paginated list needs
- * in order to render a nav. Separate from getPosts so the common "just give me the
- * posts" call keeps its simpler return type. */
 export async function getPostsPage(
   options: BlogBuddyServerOptions & { page?: number; perPage: number }
 ): Promise<PostsPage> {
@@ -196,8 +160,6 @@ export async function getPostsPage(
   return { posts: data, page, totalPages: meta?.totalPages ?? 1 }
 }
 
-/** Every published post's slug and dates, for a sitemap. Deliberately does not fetch
- * post bodies - see `fields=sitemap`. */
 export async function getPostsForSitemap(
   options: BlogBuddyServerOptions
 ): Promise<Pick<PublicPost, 'slug' | 'published_at' | 'updated_at' | 'seoNoindex'>[]> {
@@ -208,8 +170,6 @@ export async function getPostsForSitemap(
   return data
 }
 
-/** getBlogConfig, but a failure resolves to null instead of throwing - see the call
- * sites in the components below. */
 async function optionalBlogConfig(options: BlogBuddyServerOptions): Promise<BlogConfig | null> {
   try {
     return await getBlogConfig(options)
@@ -227,8 +187,6 @@ async function getTemplates(options: BlogBuddyServerOptions) {
   )
 }
 
-/** A single post, rendered on the server with the design published for this blog, so
- * the HTML is in the document a crawler downloads. */
 function assertServerRuntime(component: string): never | void {
   const proc = (globalThis as { process?: { versions?: { node?: string } } }).process
   if (proc?.versions?.node) return
@@ -255,35 +213,10 @@ export async function BlogBuddyPost({
 }: BlogBuddyConfig & {
   slug: string
   expanded?: boolean
-  /** Structured data is emitted by default: the component has already fetched the post
-   * and the config, so there is nothing left for you to wire up. Turn it off only to
-   * emit your own. */
   jsonLd?: boolean
-  /**
-   * Whether reading this post counts as a view. On by default.
-   *
-   * Counting happens in the browser after render, so this puts your `apiKey` in the
-   * page. The key is blog-scoped and meant to be publishable, but set this to false to
-   * keep it server-side, or for a preview route where a read is not a reader.
-   */
   countViews?: boolean
-  /** Send the page the reader arrived from, for the Sources panel in Analytics. Only
-   * the site is recorded, never the full address. On by default; set false to count the
-   * view without it. */
   referrer?: boolean
-  /** Label for the site root in the breadcrumb trail, e.g. "Acme". Omitted, the trail
-   * starts at the blog. */
   breadcrumbHome?: string
-  /**
-   * Called instead of throwing when the slug matches no published post.
-   *
-   * Pass your framework's own helper and the component needs no second fetch to decide:
-   *
-   *   import { notFound } from 'next/navigation'
-   *   <BlogBuddyPost {...blog} slug={slug} onNotFound={notFound} />
-   *
-   * Without it a missing post throws, which a framework will usually turn into a 500.
-   */
   onNotFound?: () => never | void
 }) {
   assertServerRuntime('BlogBuddyPost')
@@ -320,10 +253,6 @@ export async function BlogBuddyPost({
 
   return (
     <>
-      {/* Counting a read used to be a side effect of the API answering one, which is what
-          kept the single-post route off the CDN: a cached response never reaches the
-          origin, so the number would have become "origin fetches" rather than "readers".
-          The read is cached now, and this is what counts it. */}
       {countViews ? (
         <BlogBuddyViewBeacon
           blog={options.blog}
@@ -350,16 +279,6 @@ export async function BlogBuddyPost({
   )
 }
 
-/**
- * The blog's list page, rendered on the server. Page controls are links, so every page
- * has a crawlable URL. `perPage` turns pagination on; omit it and every post renders on
- * one page.
- *
- *   export default async function Page({ searchParams }) {
- *     const { page } = await searchParams
- *     return <BlogBuddyList blog="..." apiKey={...} perPage={10} page={Number(page) || 1} />
- *   }
- */
 export async function BlogBuddyList({
   page,
   perPage,
@@ -371,15 +290,9 @@ export async function BlogBuddyList({
 }: BlogBuddyConfig & {
   page?: number
   perPage?: number
-  /** Structured data for the index, on by default - same reasoning as BlogBuddyPost. */
   jsonLd?: boolean
-  /** Used in the Blog structured data, and matched to whatever blogBuddyMetadata is
-   * given so the two describe the page the same way. */
   title?: string
   description?: string
-  /** URL pattern for a page link, containing `{page}`. Defaults to "?page={page}",
-   * which keeps the current path and works with the `searchParams` example above; pass
-   * e.g. "/blog/page/{page}" if the site routes pages as real path segments. */
   pageHref?: string
 }) {
   assertServerRuntime('BlogBuddyList')
@@ -428,15 +341,6 @@ export async function BlogBuddyList({
   )
 }
 
-/**
- * `generateMetadata` for a post page or a blog index. Which one it produces depends on
- * whether the route has a `slug` param, so the same helper works in both.
- *
- *   export const generateMetadata = blogBuddyMetadata(blog)
- */
-/** What blogBuddyMetadata resolves to. One shape for post, index and not found, so the
- * result can be spread without narrowing. Structurally compatible with Next's
- * `Metadata`. */
 export interface BlogBuddyRouteMetadata {
   title: string
   description?: string
@@ -473,11 +377,6 @@ export function blogBuddyMetadata(
   }
 }
 
-/**
- * `generateStaticParams` for a post page, prerendering every post.
- *
- *   export const generateStaticParams = blogBuddyStaticParams(blog)
- */
 export function blogBuddyStaticParams(config: BlogBuddyConfig) {
   return async function generateStaticParams() {
     try {
@@ -488,12 +387,6 @@ export function blogBuddyStaticParams(config: BlogBuddyConfig) {
   }
 }
 
-/**
- * A `sitemap.ts` default export, listing the blog index and every post. Pass `extra` for
- * the rest of the site's pages.
- *
- *   export default blogBuddySitemap(blog)
- */
 export function blogBuddySitemap(
   config: BlogBuddyConfig,
   options: { extra?: SitemapEntry[] } = {}
@@ -515,11 +408,6 @@ export function blogBuddySitemap(
   }
 }
 
-/**
- * A feed route's `GET` handler. RSS by default; pass `format: 'atom'` for the other.
- *
- *   export const GET = blogBuddyFeed(blog, { feedUrl: 'https://acme.com/blog/feed.xml' })
- */
 export function blogBuddyFeed(
   config: BlogBuddyConfig,
   options: Omit<FeedOptions, 'feedUrl'> & { feedUrl?: string; format?: 'rss' | 'atom' } = {}

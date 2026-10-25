@@ -38,8 +38,6 @@ export function PaginationNav({
   node: PaginationNode
   pagination?: PaginationRenderState
   style: CssProps
-  /** Only meaningful in 'numbered' mode - overrides `style` for the active page's own
-   * button, so it can look completely different from the rest. */
   activeStyle?: CssProps
 }) {
   const p = pagination

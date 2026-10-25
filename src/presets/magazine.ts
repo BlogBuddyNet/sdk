@@ -54,9 +54,6 @@ export const magazineList: TemplateDocument = {
                 flexBasis: 64,
                 width: 100,
                 widthUnit: 'percent',
-                // `flex: 0 0 auto` undoes the fixed share along with the row: in a
-                // column the share is read off the height, so 64% of it would be a
-                // cover image sized by how much text happened to sit under it.
                 customCss:
                   '@container (max-width: 560px) { flex: 0 0 auto; aspect-ratio: 16/9 }',
               },
@@ -69,7 +66,7 @@ export const magazineList: TemplateDocument = {
               style: { direction: 'column', flexMode: 'grow' },
               children: [
                 {
-                  type: 'heading',
+                  type: 'text',
                   id: 'mag-row-title',
                   style: {
                     fontSize: 21,
@@ -125,7 +122,7 @@ export const magazineList: TemplateDocument = {
                         paddingLeft: 22,
                         paddingRight: 22,
                         borderRadius: 24,
-                        noWrap: true,
+                        lineClamp: 1,
                       },
                       label: { source: 'literal', value: 'Read More' },
                       href: { source: 'binding', binding: 'post.url' },
@@ -182,7 +179,7 @@ export const magazinePost: TemplateDocument = {
     },
     children: [
       {
-        type: 'heading',
+        type: 'text',
         id: 'mag-title',
         style: {
           fontSize: 42,
@@ -221,9 +218,10 @@ export const magazinePost: TemplateDocument = {
       },
       { type: 'divider', id: 'mag-rule', style: { marginTop: 28, borderColor: RULE } },
       {
-        type: 'richContent',
+        type: 'text',
         id: 'mag-body',
         style: { fontSize: 17, marginTop: 28, lineHeight: 1.75 },
+        content: { source: 'binding', binding: 'post.content' },
       },
       {
         type: 'carousel',
@@ -234,7 +232,7 @@ export const magazinePost: TemplateDocument = {
       },
       { type: 'divider', id: 'mag-rule-end', style: { marginTop: 56, borderColor: RULE } },
       {
-        type: 'heading',
+        type: 'text',
         id: 'mag-more-label',
         style: { fontSize: 15, fontWeight: 600, color: MUTED, marginTop: 32 },
         level: 2,

@@ -74,7 +74,7 @@ export const showcaseList: TemplateDocument = {
                     paddingBottom: 9,
                     paddingLeft: 18,
                     paddingRight: 18,
-                    noWrap: true,
+                    lineClamp: 1,
                   },
                   label: { source: 'literal', value: 'Read More' },
                   href: { source: 'binding', binding: 'post.url' },
@@ -96,7 +96,7 @@ export const showcaseList: TemplateDocument = {
               },
               children: [
                 {
-                  type: 'heading',
+                  type: 'text',
                   id: 'show-card-title',
                   style: {
                     fontSize: 22,
@@ -200,10 +200,10 @@ export const showcasePost: TemplateDocument = {
               {
                 type: 'container',
                 id: 'show-hero-column',
-                style: { direction: 'column', maxWidth: 760, centerHorizontally: true, width: 100, widthUnit: 'percent' },
+                style: { direction: 'column', maxWidth: 760, alignSelf: 'center', width: 100, widthUnit: 'percent' },
                 children: [
                   {
-                    type: 'heading',
+                    type: 'text',
                     id: 'show-title',
                     style: {
                       fontSize: 42,
@@ -256,9 +256,10 @@ export const showcasePost: TemplateDocument = {
           },
           { type: 'divider', id: 'show-rule', style: { marginTop: 28, borderColor: RULE } },
           {
-            type: 'richContent',
+            type: 'text',
             id: 'show-body',
             style: { fontSize: 17, marginTop: 28, lineHeight: 1.75 },
+            content: { source: 'binding', binding: 'post.content' },
           },
           {
             type: 'carousel',
@@ -269,7 +270,7 @@ export const showcasePost: TemplateDocument = {
           },
           { type: 'divider', id: 'show-rule-end', style: { marginTop: 56, borderColor: RULE } },
           {
-            type: 'heading',
+            type: 'text',
             id: 'show-more-label',
             style: { fontSize: 15, fontWeight: 600, color: MUTED, marginTop: 32 },
             level: 2,

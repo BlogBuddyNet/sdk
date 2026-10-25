@@ -1,6 +1,5 @@
 import type { BlockNode, BlockStyle, PaginationNode, PostListLoopNode, RelatedPostsNode } from './template-schema'
 
-/** The node's children, whether they live in `container.children` or `postListLoop.itemTemplate`. Exported for the constructor's tree flattening (layers panel, drag-and-drop). */
 export function getChildren(node: BlockNode): BlockNode[] {
   if (node.type === 'container') return node.children
   if (node.type === 'postListLoop') return [node.itemTemplate]
@@ -13,7 +12,6 @@ function withChildren(node: BlockNode, children: BlockNode[]): BlockNode {
   return node
 }
 
-/** The id of `id`'s parent node, or null if `id` is the root or isn't found. */
 export function findParentId(root: BlockNode, id: string): string | null {
   for (const child of getChildren(root)) {
     if (child.id === id) return root.id
@@ -23,7 +21,6 @@ export function findParentId(root: BlockNode, id: string): string | null {
   return null
 }
 
-/** True if `descendantId` is `ancestorId` itself, or is found anywhere under it. Used to reject drops that would create a cycle. */
 export function isSelfOrDescendant(ancestor: BlockNode, descendantId: string): boolean {
   if (ancestor.id === descendantId) return true
   return getChildren(ancestor).some((child) => isSelfOrDescendant(child, descendantId))
@@ -38,12 +35,10 @@ export function findNodeById(root: BlockNode, id: string): BlockNode | undefined
   return undefined
 }
 
-/** Finds the first postListLoop anywhere in a 'list'-kind document and returns its per-post card design. Used to render a single post as a compact card (matching the list's own item design) instead of the full post-page template - see BlogBuddy.Post's `expanded` prop. */
 export function getListItemTemplate(root: BlockNode): BlockNode | undefined {
   return getPostListLoopNode(root)?.itemTemplate
 }
 
-/** Finds the first postListLoop node anywhere in a document. */
 export function getPostListLoopNode(root: BlockNode): PostListLoopNode | undefined {
   if (root.type === 'postListLoop') return root
   for (const child of getChildren(root)) {
@@ -53,9 +48,6 @@ export function getPostListLoopNode(root: BlockNode): PostListLoopNode | undefin
   return undefined
 }
 
-/** Finds the first pagination block in a document, so a caller can read its
- * postsPerPage and mode. Fetching is the caller's concern; the renderers only draw
- * whatever `ctx.pagination` state they are handed. */
 export function getPaginationNode(root: BlockNode): PaginationNode | undefined {
   if (root.type === 'pagination') return root
   for (const child of getChildren(root)) {
@@ -65,10 +57,6 @@ export function getPaginationNode(root: BlockNode): PaginationNode | undefined {
   return undefined
 }
 
-/** Finds the first "Related posts" block anywhere in a document. Read server-side by
- * the public single-post endpoint, which needs the block's own Source/Order settings to
- * know which posts to suggest - the selection is a database query, so it cannot happen
- * at render time the way every other block's settings do. */
 export function getRelatedPostsNode(root: BlockNode): RelatedPostsNode | undefined {
   if (root.type === 'relatedPosts') return root
   for (const child of getChildren(root)) {
@@ -78,7 +66,6 @@ export function getRelatedPostsNode(root: BlockNode): RelatedPostsNode | undefin
   return undefined
 }
 
-/** Returns a new tree with `id` replaced by `updater(node)`. Leaves the tree untouched (same reference) if `id` isn't found. */
 export function updateNodeById(
   root: BlockNode,
   id: string,
@@ -98,16 +85,12 @@ export function updateNodeById(
   return changed ? withChildren(root, nextChildren) : root
 }
 
-/** Deep-clones `node` and every descendant with fresh ids, so the copy can be inserted
- * alongside the original without id collisions. Used by the constructor's "Duplicate"
- * action. */
 export function cloneWithNewIds(node: BlockNode): BlockNode {
   const cloned = { ...node, id: crypto.randomUUID() }
   const children = getChildren(node).map(cloneWithNewIds)
   return children.length > 0 ? withChildren(cloned, children) : cloned
 }
 
-/** Inserts `newNode` into the container at `parentId`'s children at `index` (clamped). No-op if `parentId` isn't a container. */
 export function insertNode(
   root: BlockNode,
   parentId: string,
@@ -123,7 +106,6 @@ export function insertNode(
   })
 }
 
-/** Removes the node with `id` from its parent container. No-op for the root node itself, or if `id` isn't found. */
 export function removeNode(root: BlockNode, id: string): BlockNode {
   if (root.id === id) return root
   const children = getChildren(root)
@@ -143,10 +125,6 @@ export function removeNode(root: BlockNode, id: string): BlockNode {
   return changed ? withChildren(root, nextChildren) : root
 }
 
-/** Returns a new tree with every block's `fontFamily` cleared back to the default
- * wherever it references `familyName` - in the base style, the `hover` override, the
- * `mobile` override, and a pagination node's `activeStyle`. Used when a custom font is
- * deleted, so no block is left pointing at a font that no longer exists. */
 export function clearFontFamilyReferences(root: BlockNode, familyName: string): BlockNode {
   function clearStyle(style: BlockStyle): BlockStyle {
     let next = style
@@ -180,13 +158,6 @@ export function clearFontFamilyReferences(root: BlockNode, familyName: string): 
   return visit(root)
 }
 
-/**
- * Removes any node whose `type` the schema no longer knows about, along with its
- * subtree, so a document saved against an older schema still validates on the next save.
- *
- * A postListLoop whose `itemTemplate` is stripped keeps a placeholder container: the
- * slot is required, and losing the loop would take every post with it.
- */
 export function stripUnknownNodeTypes(root: BlockNode, knownTypes: ReadonlySet<string>): BlockNode {
   function visit(node: BlockNode): BlockNode | null {
     if (!knownTypes.has(node.type)) return null
@@ -220,8 +191,6 @@ export function stripUnknownNodeTypes(root: BlockNode, knownTypes: ReadonlySet<s
   return visit(root) ?? root
 }
 
-/** Structural equality for two template documents, which is what answers "is this
- * design still the preset?". Key order is not significant. */
 export function documentsMatch(a: unknown, b: unknown): boolean {
   if (a === b) return true
   if (typeof a !== typeof b || a === null || b === null) return false

@@ -7,12 +7,8 @@ import type { PublicPost } from './post-data'
 import type { CustomFontRef, TemplateDocument } from './template-schema'
 
 export interface BlogBuddyClientOptions {
-  /** The blog's slug, e.g. "engineering-updates". */
   blog: string
-  /** An API key created in Dashboard -> API Keys. */
   apiKey: string
-  /** Override to point at a preview deployment or a self-hosted install. Defaults to
-   * the hosted API. */
   baseUrl?: string
 }
 
@@ -108,9 +104,6 @@ function useJsonFetch<T>(url: string | null, apiKey: string): FetchState<T> {
   return state
 }
 
-/** Fetches published posts for a blog. `perPage` turns pagination on and `meta` then
- * carries `total` and `totalPages`; without it, `page` is ignored and every post comes
- * back in one request. */
 export function useBlogBuddy({
   blog,
   apiKey,
@@ -124,13 +117,6 @@ export function useBlogBuddy({
   return useJsonFetch<PublicPost[]>(url, apiKey)
 }
 
-/**
- * Fetches a single published post by slug, and records the view once it arrives.
- *
- * Pass `countViews: false` for a preview or your own admin view of a page, where a read
- * is not a reader, or `referrer: false` to count the view without sending where the
- * reader came from.
- */
 export function useBlogBuddyPost({
   blog,
   slug,
@@ -151,8 +137,6 @@ export function useBlogBuddyPost({
   return state
 }
 
-/** Fetches the blog's list and post templates. Used by the wrapper components; you only
- * need it if you are rendering a design yourself. */
 export function useBlogBuddyTemplate({
   blog,
   apiKey,

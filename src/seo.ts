@@ -9,50 +9,28 @@ interface ImageMeta {
 }
 
 export interface SeoSiteConfig {
-  /** The site's origin, e.g. 'https://acme.com'. Set per blog in BlogBuddy's blog
-   * settings and returned by /api/v1/blog. */
   siteUrl: string
-  /** Path pattern for a post, with {slug} substituted, e.g. '/blog/{slug}'. */
   postUrlTemplate: string
-  /** Used for og:site_name and as the fallback title suffix. */
   siteName?: string
-  /** Falls back to the post's cover image when a post has none. */
   defaultImage?: string
-  /** The default image's pixel dimensions, when known. Only meaningful alongside
-   * `defaultImage`; see `imageMeta` below for why they are worth carrying. */
   defaultImageWidth?: number
   defaultImageHeight?: number
-  /** Shown as the article's author when a post has none of its own. */
   authorName?: string
-  /** A page identifying that author, emitted as JSON-LD `author.url`. Only used when the
-   * byline came from `authorName`. */
   authorUrl?: string
-  /** Path pattern for a per-post share image, e.g. '/blog/{slug}/opengraph-image'.
-   * Preferred over `defaultImage` for posts with no cover of their own. You provide the
-   * route; this only builds the URL. */
   postImageUrlTemplate?: string
-  /** Path pattern for page N of the index, e.g. '/blog?page={page}'. Without it every
-   * page canonicalises to page one, which reads as duplicate content. */
   pageUrlTemplate?: string
-  /** BCP 47, e.g. 'en' or 'pt-BR'. Emitted as JSON-LD `inLanguage` and, underscored
-   * to the form Open Graph wants ('pt_BR'), as og:locale. */
   locale?: string
 }
 
-/** Joins the configured origin to a path, tolerating a trailing slash on one and a
- * missing leading slash on the other. */
 function absolute(config: SeoSiteConfig, path: string): string {
   const origin = config.siteUrl.replace(/\/+$/, '')
   return `${origin}${path.startsWith('/') ? path : `/${path}`}`
 }
 
-/** Leaves an absolute or protocol-relative URL alone, resolves anything else against
- * the site origin. A relative og:image is one a crawler cannot fetch. */
 function absoluteImage(config: SeoSiteConfig, url: string): string {
   return /^([a-z][a-z0-9+.-]*:)?\/{2}/i.test(url) ? url : absolute(config, url)
 }
 
-/** The blog's own share image, when it has one. */
 function defaultImage(config: SeoSiteConfig): ImageMeta | undefined {
   if (!config.defaultImage) return undefined
   return {
@@ -62,8 +40,6 @@ function defaultImage(config: SeoSiteConfig): ImageMeta | undefined {
   }
 }
 
-/** Where the blog index lives: the post pattern with its final /{slug} segment removed,
- * so '/blog/{slug}' becomes '/blog'. */
 function indexPath(config: SeoSiteConfig): string {
   if (config.pageUrlTemplate) {
     const stripped = config.pageUrlTemplate
@@ -74,15 +50,12 @@ function indexPath(config: SeoSiteConfig): string {
   return config.postUrlTemplate.replace(/\/?\{slug\}.*$/, '') || '/'
 }
 
-/** The canonical, absolute URL for a post on the customer's site. */
 export function postUrl(post: Pick<PublicPost, 'slug'>, config: SeoSiteConfig): string {
   const origin = config.siteUrl.replace(/\/+$/, '')
   const path = config.postUrlTemplate.replace(/\{slug\}/g, encodeURIComponent(post.slug))
   return `${origin}${path.startsWith('/') ? path : `/${path}`}`
 }
 
-/** A post's description: the SEO panel override, then the excerpt, then the opening of
- * the body. Always trimmed at a word boundary. */
 export function postDescription(post: PublicPost): string {
   const source =
     post.seoDescription?.trim() || post.excerpt?.trim() || extractContentText(post.content).trim()
@@ -94,8 +67,6 @@ export function postDescription(post: PublicPost): string {
   return `${(lastSpace > 60 ? clipped.slice(0, lastSpace) : clipped).trimEnd()}…`
 }
 
-/** The share image for a post: its own cover, then `postImageUrlTemplate`, then
- * `defaultImage`. Dimensions are included only when known, never guessed. */
 function postImage(post: PublicPost, config: SeoSiteConfig): ImageMeta | undefined {
   const content = post.content as
     | { coverImage?: string; coverImageWidth?: number; coverImageHeight?: number }
@@ -115,7 +86,6 @@ function postImage(post: PublicPost, config: SeoSiteConfig): ImageMeta | undefin
   return defaultImage(config)
 }
 
-/** og:image entries carry dimensions only when we actually have them. */
 function openGraphImage(image: ImageMeta, alt: string) {
   return {
     url: image.url,
@@ -125,18 +95,14 @@ function openGraphImage(image: ImageMeta, alt: string) {
   }
 }
 
-/** Open Graph spells locales with an underscore ('pt_BR'), BCP 47 with a hyphen. */
 function openGraphLocale(locale: string | undefined): string | undefined {
   return locale ? locale.replace('-', '_') : undefined
 }
 
-/** The byline: the post's own author, then the blog's default. */
 function postAuthor(post: PublicPost, config: SeoSiteConfig): string | undefined {
   return post.author?.trim() || config.authorName
 }
 
-/** Metadata for a post page, ready to return from a Next.js `generateMetadata`. The
- * canonical URL is the field that matters most. */
 export function buildPostMetadata(post: PublicPost, config: SeoSiteConfig) {
   const url = postUrl(post, config)
   const description = postDescription(post)
@@ -174,9 +140,6 @@ export function buildPostMetadata(post: PublicPost, config: SeoSiteConfig) {
   }
 }
 
-/** Metadata for the blog index page. Separate from buildPostMetadata because a list
- * page is not an article: no publish date, no author, and its canonical is the index
- * itself rather than any post on it. */
 export function buildBlogMetadata(
   config: SeoSiteConfig & { title?: string; description?: string; page?: number }
 ) {
@@ -210,16 +173,12 @@ export function buildBlogMetadata(
   }
 }
 
-/** The absolute URL of the blog index, or of page N. Page 1 is the bare index, never
- * '?page=1'. */
 export function blogIndexUrl(config: SeoSiteConfig, page?: number): string {
   const base = indexPath(config)
   if (!page || page <= 1 || !config.pageUrlTemplate) return absolute(config, base)
   return absolute(config, config.pageUrlTemplate.replace(/\{page\}/g, String(page)))
 }
 
-/** schema.org Article JSON-LD for a post. Meta tags say how to display a link; this
- * says what the page is. */
 export function buildArticleJsonLd(post: PublicPost, config: SeoSiteConfig): Record<string, unknown> {
   const url = postUrl(post, config)
   const image = postImage(post, config)
@@ -253,8 +212,6 @@ export function buildArticleJsonLd(post: PublicPost, config: SeoSiteConfig): Rec
   }
 }
 
-/** schema.org BreadcrumbList for a post, which is what a search result shows in place
- * of the raw path. Pass `home` to include the site root as the first crumb. */
 export function buildBreadcrumbJsonLd(
   post: Pick<PublicPost, 'title' | 'slug'>,
   config: SeoSiteConfig,
@@ -278,8 +235,6 @@ export function buildBreadcrumbJsonLd(
   }
 }
 
-/** schema.org Blog JSON-LD for the index page. Lists only the posts passed in, which
- * is one page of them. */
 export function buildBlogJsonLd(
   posts: Array<Pick<PublicPost, 'title' | 'slug' | 'published_at'>>,
   config: SeoSiteConfig & { title?: string; description?: string; page?: number }
@@ -314,8 +269,6 @@ export interface SitemapEntry {
   priority: number
 }
 
-/** Sitemap entries for published posts, shaped for Next.js's `MetadataRoute.Sitemap`.
- * Serve it from your own domain: a sitemap may only list URLs on the host serving it. */
 export function buildSitemapEntries(
   posts: Pick<PublicPost, 'slug' | 'published_at' | 'updated_at' | 'seoNoindex'>[],
   config: SeoSiteConfig

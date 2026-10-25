@@ -3,24 +3,19 @@ import type { BlockNode, CustomFontRef, ImageSource, Link, TemplateDocument, Tex
 import { extractGalleryImages, resolveBinding, type PaginationRenderState, type PublicPost } from './post-data'
 import { PaginationNav } from './pagination-nav'
 import { CarouselStrip } from './carousel-strip'
-import { baseCssProps, BORDER_BOX, buildFontFaceCss, buildHoverCss, buildResponsiveCss, buttonCssProps, CAROUSEL_DEFAULT_GAP, CAROUSEL_IMAGE_WIDTHS, carouselCssProps, containerCssProps, imageCssProps, RESPONSIVE_CONTAINER_NAME, RICH_CONTENT_CSS } from './style-utils'
+import { baseCssProps, BORDER_BOX, buildFontFaceCss, buildStateCss, buildResponsiveCss, buttonCssProps, CAROUSEL_DEFAULT_GAP, CAROUSEL_IMAGE_WIDTHS, carouselCssProps, containerCssProps, imageCssProps, RESPONSIVE_CONTAINER_NAME, RICH_CONTENT_CSS } from './style-utils'
 
 interface RenderContext {
   posts: PublicPost[]
   currentPost?: PublicPost
   postUrlTemplate?: string
-  /** Reserved for nodes that call back to the API from the visitor's page. Nothing consumes it today. */
   apiKey?: string
   baseUrl?: string
   blogSlug?: string
-  /** Needed only by the pagination node - see PaginationRenderState in post-data.ts. */
   pagination?: PaginationRenderState
-  /** Constructor-only: click-action overlays are drawn but not clickable, so the design
-   * canvas stays selectable. */
   editing?: boolean
-  /** Constructor-only: makes those overlays clickable again, for the canvas's Interact
-   * mode. The constructor decides what a click does; nothing here navigates on its own. */
   interactive?: boolean
+  inLoop?: boolean
 }
 
 function resolveText(content: TextContent, ctx: RenderContext): string {
@@ -33,19 +28,27 @@ function resolveText(content: TextContent, ctx: RenderContext): string {
   )
 }
 
+function headingLevelFor(node: Extract<BlockNode, { type: 'text' }>, ctx: RenderContext): 1 | 2 | 3 | 4 | undefined {
+  if (node.level) return node.level
+  if (node.content.source === 'binding' && node.content.binding === 'post.title') {
+    return ctx.inLoop ? 2 : 1
+  }
+  return undefined
+}
+
+function truncateText(value: string, maxChars: number | undefined): string {
+  if (maxChars === undefined || value.length <= maxChars) return value
+  const cut = value.slice(0, maxChars)
+  const lastSpace = cut.lastIndexOf(' ')
+  return `${(lastSpace > maxChars * 0.6 ? cut.slice(0, lastSpace) : cut).trimEnd()}\u2026`
+}
+
 function resolveUrl(ref: Link | ImageSource, ctx: RenderContext): string {
   if (ref.source === 'literal') return ref.value
   if (!ctx.currentPost) return ''
   return resolveBinding(ref.binding, { post: ctx.currentPost, postUrlTemplate: ctx.postUrlTemplate })
 }
 
-/**
- * A block's click action as a real anchor stretched over it. An `<a href>` rather than
- * an onClick, so crawlers, the keyboard and middle-click all work.
- *
- * `aria-label` carries the accessible name, since the anchor covers the block rather
- * than wrapping its text.
- */
 function clickOverlay(node: BlockNode, ctx: RenderContext): React.ReactNode {
   const action = 'clickAction' in node ? node.clickAction : undefined
   if (!action) return null
@@ -71,9 +74,6 @@ function clickOverlay(node: BlockNode, ctx: RenderContext): React.ReactNode {
   )
 }
 
-/** Wraps a rendered block so its click overlay has something to position against.
- * Containers get the anchor injected as a child instead, since wrapping one would
- * change how it sizes inside its flex parent. */
 function withClickOverlay(
   node: BlockNode,
   ctx: RenderContext,
@@ -86,7 +86,7 @@ function withClickOverlay(
   if (!overlay) return element
 
   return (
-    <div key={node.id} style={{ position: 'relative' }}>
+    <div key={node.id} data-click-wrap={node.id} style={{ position: 'relative' }}>
       {element}
       {overlay}
     </div>
@@ -137,16 +137,37 @@ function renderNodeInner(node: BlockNode, ctx: RenderContext): React.ReactNode {
       )
     }
 
-    case 'text':
+    case 'text': {
+      if (node.content.source === 'binding' && node.content.binding === 'post.content') {
+        if (!ctx.currentPost?.contentHtml) return null
+        return (
+          <React.Fragment key={node.id}>
+            <style dangerouslySetInnerHTML={{ __html: RICH_CONTENT_CSS }} />
+            <div
+              data-node-id={node.id}
+              className="pw-rich-content"
+              style={baseCssProps(node.style)}
+              dangerouslySetInnerHTML={{ __html: ctx.currentPost.contentHtml }}
+            />
+          </React.Fragment>
+        )
+      }
+      const level = headingLevelFor(node, ctx)
+      const Tag = level ? (`h${level}` as 'h1' | 'h2' | 'h3' | 'h4') : 'p'
       return (
-        <p
+        <Tag
           key={node.id}
           data-node-id={node.id}
-          style={{ ...baseCssProps(node.style), whiteSpace: 'pre-wrap' }}
+          style={{
+            ...(node.level ? { margin: 0 } : {}),
+            ...baseCssProps(node.style),
+            whiteSpace: 'pre-wrap',
+          }}
         >
-          {resolveText(node.content, ctx)}
-        </p>
+          {truncateText(resolveText(node.content, ctx), node.maxChars)}
+        </Tag>
       )
+    }
 
     case 'image': {
       const src = resolveUrl(node.source, ctx)
@@ -199,7 +220,7 @@ function renderNodeInner(node: BlockNode, ctx: RenderContext): React.ReactNode {
         <div key={node.id} data-node-id={node.id} style={containerCssProps(node.style)}>
           {ctx.posts.map((post) => (
             <React.Fragment key={post.id}>
-              {renderNode(node.itemTemplate, { ...ctx, currentPost: post })}
+              {renderNode(node.itemTemplate, { ...ctx, currentPost: post, inLoop: true })}
             </React.Fragment>
           ))}
         </div>
@@ -291,36 +312,27 @@ function renderNodeInner(node: BlockNode, ctx: RenderContext): React.ReactNode {
 
 export interface TemplateRendererProps {
   document: TemplateDocument
-  /** Required when document.kind === 'list'. */
   posts?: PublicPost[]
-  /** Required when document.kind === 'post'. */
   post?: PublicPost
-  /** e.g. "/blog/{slug}" - how the host site routes to a post, used to resolve post.url bindings. */
   postUrlTemplate?: string
-  /** Custom fonts to declare via @font-face before rendering (see /api/v1/templates' `fonts` field). */
   fonts?: CustomFontRef[]
-  /** Reserved for nodes that call back to the API from the visitor's page. Nothing consumes it today. */
   apiKey?: string
   baseUrl?: string
   blogSlug?: string
-  /** Only consumed by the pagination node - see PaginationRenderState in post-data.ts. */
   pagination?: PaginationRenderState
-  /** See `interactive`'s doc comment on RenderContext - constructor-only. */
   interactive?: boolean
-  /** See `editing`'s doc comment on RenderContext - only ever passed by the
-   * constructor, so click-action overlays cannot swallow canvas selection clicks. */
   editing?: boolean
 }
 
 export function TemplateRenderer({ document, posts, post, postUrlTemplate, fonts, apiKey, baseUrl, blogSlug, pagination, editing, interactive }: TemplateRendererProps) {
   const ctx: RenderContext = { posts: posts ?? [], currentPost: post, postUrlTemplate, apiKey, baseUrl, blogSlug, pagination, editing, interactive }
   const fontFaceCss = fonts && fonts.length > 0 ? buildFontFaceCss(fonts) : ''
-  const hoverCss = buildHoverCss(document.root)
+  const stateCss = editing && !interactive ? '' : buildStateCss(document.root)
   const responsiveCss = buildResponsiveCss(document.root)
   return (
     <>
       {fontFaceCss && <style dangerouslySetInnerHTML={{ __html: fontFaceCss }} />}
-      {hoverCss && <style dangerouslySetInnerHTML={{ __html: hoverCss }} />}
+      {stateCss && <style dangerouslySetInnerHTML={{ __html: stateCss }} />}
       {responsiveCss && <style dangerouslySetInnerHTML={{ __html: responsiveCss }} />}
       {}
       <div

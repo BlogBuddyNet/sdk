@@ -53,7 +53,7 @@ export const compactList: TemplateDocument = {
               alt: '',
             },
             {
-              type: 'heading',
+              type: 'text',
               id: 'cmp-card-title',
               style: {
                 fontSize: 21,
@@ -166,7 +166,7 @@ export const compactPost: TemplateDocument = {
             alt: '',
           },
           {
-            type: 'heading',
+            type: 'text',
             id: 'cmp-title',
             style: {
               fontSize: 34,
@@ -201,9 +201,10 @@ export const compactPost: TemplateDocument = {
             content: { source: 'binding', binding: 'post.excerpt' },
           },
           {
-            type: 'richContent',
+            type: 'text',
             id: 'cmp-body',
             style: { fontSize: 17, marginTop: 28, lineHeight: 1.75 },
+            content: { source: 'binding', binding: 'post.content' },
           },
           {
             type: 'carousel',
@@ -227,7 +228,7 @@ export const compactPost: TemplateDocument = {
         ],
       },
       {
-        type: 'heading',
+        type: 'text',
         id: 'cmp-more-label',
         style: { fontSize: 15, fontWeight: 600, color: MUTED, marginTop: 52 },
         level: 2,

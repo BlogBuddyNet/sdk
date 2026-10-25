@@ -26,24 +26,14 @@ const BOX_SHADOW_VALUES: Record<NonNullable<BlockStyle['boxShadow']>, string> = 
   xl: '0 20px 40px rgba(0, 0, 0, 0.18)',
 }
 
-/** Parses a `style.customCss` string into a CssProps map. Declarations only, never
- * selectors, so it can only affect the node it is applied to. */
-/** One `@container` block out of a block's custom CSS: its width test, and the
- * declarations it applies. */
 export interface CustomCssBlock {
   condition: string
   props: CssProps
 }
 
-/** The blocks in a block's custom CSS, with the conditions checked. An unparseable
- * condition is dropped rather than emitted: the schema refuses to save one, so the only
- * way to reach this is a document that was written around the constructor. */
 export function parseCustomCssBlocks(customCss?: string): CustomCssBlock[] {
   if (!customCss) return []
   const blocks: CustomCssBlock[] = []
-  // A fresh regex: the shared one carries /g, and a /g regex holds its own lastIndex
-  // between calls - so every second read of the same string would start from where the
-  // previous one stopped and find nothing.
   const pattern = new RegExp(CUSTOM_CSS_BLOCK_PATTERN.source, 'gi')
   let match = pattern.exec(customCss)
   while (match) {
@@ -57,8 +47,6 @@ export function parseCustomCssBlocks(customCss?: string): CustomCssBlock[] {
   return blocks
 }
 
-/** The declarations outside any block - the ones that apply at every width, and go
- * straight onto the element. */
 export function parseCustomCss(customCss?: string): CssProps {
   if (!customCss) return {}
   return parseDeclarations(customCss.replace(new RegExp(CUSTOM_CSS_BLOCK_PATTERN.source, 'gi'), ''))
@@ -79,9 +67,6 @@ function parseDeclarations(source: string): CssProps {
   return props
 }
 
-/** Combines a validated #RRGGBB/#RGB hex color with a 0-100 opacity into an rgba()
- * string. The schema keeps colors as plain hex (so they can't smuggle a CSS
- * function) - opacity is applied here, at render time, as a separate step. */
 function colorWithOpacity(hex: string, opacityPct: number): string {
   const clean = hex.replace('#', '')
   const full = clean.length === 3 ? clean.split('').map((c) => c + c).join('') : clean
@@ -187,20 +172,70 @@ function coreCssProps(style: BlockStyle): CssProps {
     props.position = 'relative'
     props.zIndex = '1'
   }
-  if (style.lineClamp !== undefined) {
+  if (style.lineClamp === 1) {
+    props.whiteSpace = 'nowrap'
+    props.textOverflow = 'ellipsis'
+    props.overflow = 'hidden'
+  } else if (style.lineClamp !== undefined) {
     props.display = '-webkit-box'
     props.WebkitLineClamp = style.lineClamp
     props.WebkitBoxOrient = 'vertical'
     props.overflow = 'hidden'
+    if (style.lineHeight !== undefined) {
+      props.maxHeight = `${Number((style.lineHeight * style.lineClamp).toFixed(4))}em`
+    }
   }
   return props
 }
 
-/** Padding counts inside the width. Inline styles only, never the hover or media rules. */
+const SHORTHAND_LONGHANDS: Record<string, readonly string[]> = {
+  background: [
+    'backgroundColor',
+    'backgroundImage',
+    'backgroundPosition',
+    'backgroundSize',
+    'backgroundRepeat',
+    'backgroundAttachment',
+    'backgroundClip',
+    'backgroundOrigin',
+  ],
+  font: ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'lineHeight'],
+  border: ['borderWidth', 'borderStyle', 'borderColor'],
+  borderRadius: [
+    'borderTopLeftRadius',
+    'borderTopRightRadius',
+    'borderBottomRightRadius',
+    'borderBottomLeftRadius',
+  ],
+  margin: ['marginTop', 'marginRight', 'marginBottom', 'marginLeft'],
+  padding: ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'],
+  flex: ['flexGrow', 'flexShrink', 'flexBasis'],
+  overflow: ['overflowX', 'overflowY'],
+  gap: ['rowGap', 'columnGap'],
+  textDecoration: ['textDecorationLine', 'textDecorationColor', 'textDecorationStyle'],
+  inset: ['top', 'right', 'bottom', 'left'],
+}
+
+export function mergeCustomCss(generated: CssProps, custom: CssProps): CssProps {
+  const merged: CssProps = { ...generated }
+  for (const property of Object.keys(custom)) {
+    for (const longhand of SHORTHAND_LONGHANDS[property] ?? []) delete merged[longhand]
+  }
+  return { ...merged, ...custom }
+}
+
+export function customCssCovers(custom: CssProps): Set<string> {
+  const covered = new Set<string>(Object.keys(custom))
+  for (const property of Object.keys(custom)) {
+    for (const longhand of SHORTHAND_LONGHANDS[property] ?? []) covered.add(longhand)
+  }
+  return covered
+}
+
 export const BORDER_BOX: CssProps = { boxSizing: 'border-box' }
 
 export function baseCssProps(style: BlockStyle): CssProps {
-  return { ...BORDER_BOX, ...coreCssProps(style), ...parseCustomCss(style.customCss) }
+  return mergeCustomCss({ ...BORDER_BOX, ...coreCssProps(style) }, parseCustomCss(style.customCss))
 }
 
 export function camelToKebab(prop: string): string {
@@ -211,43 +246,65 @@ function escapeAttrValue(value: string): string {
   return value.replace(/["\\]/g, '\\$&')
 }
 
-/** One `:hover` rule per block that sets `style.hover`. Inline styles cannot express a
- * pseudo-class, so this needs a real stylesheet, and every declaration is `!important`
- * to outrank the block's own inline style. */
-const HOVER_TRANSITION =
+const STATE_TRANSITION =
   'transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;'
 
-export function buildHoverCss(root: BlockNode): string {
+const STATES = [
+  { key: 'hover', pseudos: [':hover'] },
+  { key: 'focus', pseudos: [':active', ':focus-visible', ':has(:focus-visible)'] },
+] as const
+
+const WRAPPED_PRESS_PSEUDOS = [':active', ':has(:focus-visible)'] as const
+
+export function buildStateCss(root: BlockNode): string {
   const rules: string[] = []
 
   function visit(node: BlockNode) {
-    if (node.type === 'carousel' && node.style?.hover) {
-      const selector = `[data-node-id="${escapeAttrValue(node.id)}"]`
-      const { box, photo } = carouselCssProps(node.style.hover)
-      const boxDeclarations = cssDeclarations(box)
-      if (boxDeclarations) rules.push(`${selector}:hover { ${boxDeclarations}; ${HOVER_TRANSITION} }`)
-      const photoDeclarations = cssDeclarations(photo)
-      if (photoDeclarations) rules.push(`${selector}:hover img { ${photoDeclarations}; ${HOVER_TRANSITION} }`)
-      for (const child of getChildren(node)) visit(child)
-      return
-    }
-    if ('style' in node && node.style?.hover) {
-      const props = { ...coreCssProps(node.style.hover), ...parseCustomCss(node.style.hover.customCss) }
+    for (const { key, pseudos } of STATES) {
+      const state = 'style' in node ? node.style?.[key] : undefined
+      if (!state) continue
+
+      if (node.type === 'carousel') {
+        const base = `[data-node-id="${escapeAttrValue(node.id)}"]`
+        const matched = pseudos.map((pseudo) => `${base}${pseudo}`)
+        const { box, photo } = carouselCssProps(state)
+        const boxDeclarations = cssDeclarations(box)
+        if (boxDeclarations) {
+          rules.push(`${matched.join(', ')} { ${boxDeclarations}; ${STATE_TRANSITION} }`)
+        }
+        const photoDeclarations = cssDeclarations(photo)
+        if (photoDeclarations) {
+          rules.push(
+            `${matched.map((selector) => `${selector} img`).join(', ')} { ${photoDeclarations}; ${STATE_TRANSITION} }`
+          )
+        }
+        continue
+      }
+
+      const props = mergeCustomCss(coreCssProps(state), parseCustomCss(state.customCss))
       const declarations = Object.entries(props)
         .map(([prop, value]) => `${camelToKebab(prop)}: ${value} !important`)
         .join('; ')
-      if (declarations) {
-        const selectors =
-          node.type === 'pagination'
-            ? [
-                `button[data-node-id="${escapeAttrValue(node.id)}"]:not(:disabled)`,
-                `a[data-node-id="${escapeAttrValue(node.id)}"]:not([aria-current="page"])`,
-              ]
-            : [`[data-node-id="${escapeAttrValue(node.id)}"]`]
-        rules.push(
-          `${selectors.map((selector) => `${selector}:hover`).join(', ')} { ${declarations}; ${HOVER_TRANSITION} }`
-        )
+      if (!declarations) continue
+
+      const selectors =
+        node.type === 'pagination'
+          ? [
+              `button[data-node-id="${escapeAttrValue(node.id)}"]:not(:disabled)`,
+              `a[data-node-id="${escapeAttrValue(node.id)}"]:not([aria-current="page"])`,
+            ]
+          : [`[data-node-id="${escapeAttrValue(node.id)}"]`]
+      const matched = selectors.flatMap((selector) =>
+        pseudos.map((pseudo) => `${selector}${pseudo}`)
+      )
+      if (key === 'focus' && node.type !== 'container' && 'clickAction' in node && node.clickAction) {
+        const wrapper = `[data-click-wrap="${escapeAttrValue(node.id)}"]`
+        const block = `[data-node-id="${escapeAttrValue(node.id)}"]`
+        for (const pseudo of WRAPPED_PRESS_PSEUDOS) {
+          matched.push(`${wrapper}${pseudo} > ${block}`)
+        }
       }
+      rules.push(`${matched.join(', ')} { ${declarations}; ${STATE_TRANSITION} }`)
     }
     for (const child of getChildren(node)) visit(child)
   }
@@ -256,15 +313,10 @@ export function buildHoverCss(root: BlockNode): string {
   return rules.join('\n')
 }
 
-/** The three widths a carousel's "Image size" maps to. Width only: the height follows
- * from CAROUSEL_ASPECT_RATIO in carousel-strip.tsx, which every photo is cropped to. */
 export const CAROUSEL_IMAGE_WIDTHS = { small: 140, medium: 240, large: 380 } as const
 
-/** Default spacing between a carousel's photos when the block sets no `gap` of its own. */
 export const CAROUSEL_DEFAULT_GAP = 12
 
-/** The properties a carousel routes to its photos rather than to the box around them
- * - see carouselCssProps. */
 const CAROUSEL_PHOTO_PROPS = new Set([
   'borderRadius',
   'borderTopLeftRadius',
@@ -276,12 +328,10 @@ const CAROUSEL_PHOTO_PROPS = new Set([
   'borderColor',
 ])
 
-/** Splits a carousel's style between the box and the photos inside it. Rounding and
- * borders go to the photos, where they are visible; the rest stays on the box. */
 export function carouselCssProps(style: BlockStyle): { box: CssProps; photo: CssProps } {
   const box: CssProps = {}
   const photo: CssProps = {}
-  for (const [prop, value] of Object.entries({ ...coreCssProps(style), ...parseCustomCss(style.customCss) })) {
+  for (const [prop, value] of Object.entries(mergeCustomCss(coreCssProps(style), parseCustomCss(style.customCss)))) {
     if (CAROUSEL_PHOTO_PROPS.has(prop)) photo[prop] = value
     else box[prop] = value
   }
@@ -294,28 +344,10 @@ function cssDeclarations(props: CssProps, important = true): string {
     .join('; ')
 }
 
-/** The narrowest a column may get before the row gives one up. Roughly a phone's
- * width less its margins: below this a card is narrower than the words in it. */
 export const COLUMN_MIN_PX = 260
 
-/**
- * `columns: 3` as "three across when there is room for three", not "three across at
- * every width down to a phone".
- *
- * A plain `repeat(3, 1fr)` holds three columns at 900px and at 400px alike, which is
- * how a three-column list of cards ends up as three slivers. This is the usual grid
- * idiom instead: each track is at least a readable width and at most its share of the
- * row, and `auto-fit` drops to however many actually fit. The count becomes a ceiling,
- * which is what somebody choosing it means - at full width the layout is identical to
- * what it was.
- *
- * The share subtracts the gaps first, or three tracks of exactly a third plus two gaps
- * would be wider than the row and wrap to two.
- */
 export function columnTracks(columns: number, gap: number): string {
   const share = `calc((100% - ${(columns - 1) * gap}px) / ${columns})`
-  // min(100%, …) so a container narrower than one column still gets a track that fits
-  // inside it rather than one that overflows.
   return `repeat(auto-fit, minmax(max(min(100%, ${COLUMN_MIN_PX}px), ${share}), 1fr))`
 }
 
@@ -332,7 +364,7 @@ export function containerCssProps(style: BlockStyle): CssProps {
   if (style.gap !== undefined) props.gap = `${style.gap}px`
   if (style.align) props.alignItems = ALIGN_MAP[style.align]
   if (style.justify) props.justifyContent = JUSTIFY_MAP[style.justify]
-  return { ...props, ...parseCustomCss(style.customCss) }
+  return mergeCustomCss(props, parseCustomCss(style.customCss))
 }
 
 export function imageCssProps(style: BlockStyle): CssProps {
@@ -345,7 +377,7 @@ export function imageCssProps(style: BlockStyle): CssProps {
     ...coreCssProps(style),
   }
   if (style.aspectRatio) props.aspectRatio = style.aspectRatio
-  return { ...props, ...parseCustomCss(style.customCss) }
+  return mergeCustomCss(props, parseCustomCss(style.customCss))
 }
 
 export function buttonCssProps(style: BlockStyle): CssProps {
@@ -357,40 +389,143 @@ export function buttonCssProps(style: BlockStyle): CssProps {
     ...coreCssProps(style),
   }
   if (style.alignSelf !== 'stretch' && props.width === undefined) props.width = 'fit-content'
-  return { ...props, ...parseCustomCss(style.customCss) }
+  return mergeCustomCss(props, parseCustomCss(style.customCss))
 }
 
-/** The name on the query container the renderer wraps a template in, so a rule can
- * only ever match our own box - never a container somebody's own page declares. */
+export function blockCssText(node: BlockNode): string {
+  if (!('style' in node) || !node.style) return ''
+  const style = node.style
+  const props =
+    node.type === 'container' || node.type === 'postListLoop'
+      ? containerCssProps(style)
+      : node.type === 'image'
+        ? imageCssProps(style)
+        : node.type === 'button'
+          ? buttonCssProps(style)
+          : node.type === 'carousel'
+            ? carouselCssProps(style).box
+            : baseCssProps(style)
+  const covered = customCssCovers(parseCustomCss(style.customCss))
+  return Object.entries(props)
+    .filter(([prop]) => !covered.has(prop))
+    .map(([prop, value]) => `${camelToKebab(prop)}: ${value};`)
+    .join('\n')
+}
+
+export function formatCssText(css: string): string {
+  if (!css.trim()) return ''
+
+  const blocks: string[] = []
+  const flat = css.replace(new RegExp(CUSTOM_CSS_BLOCK_PATTERN.source, 'gi'), (_match, condition: string, body: string) => {
+    const declarations = body
+      .split(';')
+      .map((declaration) => declaration.trim())
+      .filter(Boolean)
+      .map((declaration) => `  ${declaration};`)
+    blocks.push(`@container ${condition.trim()} {\n${declarations.join('\n')}\n}`)
+    return ''
+  })
+
+  const lines = flat
+    .split(';')
+    .map((declaration) => declaration.trim())
+    .filter(Boolean)
+    .map((declaration) => `${declaration};`)
+
+  return [...lines, ...blocks].join('\n')
+}
+
+export interface CssEdit {
+  customCss: string | undefined
+  clear: string[]
+}
+
+function splitDocument(css: string): { props: Map<string, string>; blocks: string[] } {
+  const blocks: string[] = []
+  const flat = css.replace(new RegExp(CUSTOM_CSS_BLOCK_PATTERN.source, 'gi'), (match) => {
+    blocks.push(match.trim())
+    return ''
+  })
+  const props = new Map<string, string>()
+  for (const declaration of flat.split(/[;\n]/)) {
+    const at = declaration.indexOf(':')
+    if (at === -1) continue
+    const property = declaration.slice(0, at).trim()
+    const value = declaration.slice(at + 1).replace(/;\s*$/, '').trim()
+    if (property && value) props.set(property, value)
+  }
+  return { props, blocks }
+}
+
+function styleKeysOwning(node: BlockNode, property: string): string[] {
+  if (!('style' in node) || !node.style) return []
+  const base = { ...node.style, customCss: undefined }
+  const without = (key: string) => {
+    const style: Record<string, unknown> = { ...base }
+    delete style[key]
+    return splitDocument(blockCssText({ ...node, style } as BlockNode)).props.has(property)
+  }
+  return Object.keys(base)
+    .filter((key) => key !== 'customCss' && key !== 'hover' && key !== 'focus')
+    .filter((key) => !without(key))
+}
+
+export function cssEditFor(node: BlockNode, edited: string): CssEdit {
+  const generated = splitDocument(blockCssText(node)).props
+  const { props, blocks } = splitDocument(edited)
+
+  const kept: string[] = []
+  props.forEach((value, property) => {
+    if (generated.get(property) === value) return
+    kept.push(`${property}: ${value};`)
+  })
+
+  const clear: string[] = []
+  generated.forEach((_value, property) => {
+    if (props.has(property)) return
+    for (const key of styleKeysOwning(node, property)) {
+      if (!clear.includes(key)) clear.push(key)
+    }
+  })
+
+  const text = [...kept, ...blocks].join('\n').trim()
+  return { customCss: text || undefined, clear }
+}
+
+export function changedCssProps(node: BlockNode, before: BlockStyle, after: BlockStyle): string[] {
+  const read = (style: BlockStyle) =>
+    parseDeclarations(blockCssText({ ...node, style } as BlockNode))
+  const from = read(before)
+  const to = read(after)
+  const names = Array.from(new Set(Object.keys(from).concat(Object.keys(to))))
+  return names.filter((name) => from[name] !== to[name]).map(camelToKebab)
+}
+
+export function dropDeclarations(customCss: string | undefined, properties: string[]): string | undefined {
+  if (!customCss) return customCss
+  const unwanted = new Set(properties)
+  const blocks: string[] = []
+  const flat = customCss.replace(new RegExp(CUSTOM_CSS_BLOCK_PATTERN.source, 'gi'), (match) => {
+    blocks.push(match.trim())
+    return ''
+  })
+  const kept = flat
+    .split(';')
+    .map((declaration) => declaration.trim())
+    .filter((declaration) => {
+      const at = declaration.indexOf(':')
+      if (at === -1) return false
+      return !unwanted.has(declaration.slice(0, at).trim())
+    })
+    .map((declaration) => `${declaration};`)
+  const text = [...kept, ...blocks].join('\n').trim()
+  return text || undefined
+}
+
 export const RESPONSIVE_CONTAINER_NAME = 'blogbuddy'
 
-/**
- * Below this width a design uses the `@container` blocks in its custom CSS.
- *
- * The width of the design's own box, not the window's: these are container queries.
- * That is the right question for something embedded in somebody else's page - a
- * template in a 400px sidebar is narrow whatever size the window is, and a viewport
- * query called it desktop and overflowed.
- *
- * Smaller than the 767px viewport breakpoint it replaces, and for the same reason: 767
- * was a window width, which usually meant a content column of around 700. As a measure
- * of the column itself, the question is "is this box too narrow to hold the desktop
- * type and spacing", and that happens nearer 560.
- */
 export const RESPONSIVE_BREAKPOINT_PX = 560
 
-/**
- * The `@container` blocks out of every node's custom CSS, as one stylesheet.
- *
- * This is the whole of how a design responds to width now. There used to be a second
- * set of values per block - `style.mobile` - which meant every number had two places to
- * be wrong and the Inspector had to be put into a mode before one of them could be
- * seen. A block has one of each value; where it behaves differently at another width,
- * it says so in its own CSS, where it can be read.
- *
- * `!important` because the base values are inline styles, which a stylesheet cannot
- * otherwise override.
- */
 export function buildResponsiveCss(root: BlockNode): string {
   const rules: string[] = []
 
@@ -412,13 +547,8 @@ export function buildResponsiveCss(root: BlockNode): string {
   return rules.join('\n')
 }
 
-/** CSS generic families, which must never be quoted: `font-family: "serif"` asks for a
- * font whose actual name is "serif" and finds nothing. */
 const GENERIC_FONT_FAMILIES = new Set(['serif', 'sans-serif', 'monospace', 'cursive', 'fantasy', 'system-ui'])
 
-/** Renders a stored font-family as a valid CSS value. Custom families are quoted: an
- * unquoted one has to be a sequence of CSS identifiers, which a name like "Playfair
- * Display" is not. Generic keywords are left bare. */
 export function cssFontFamily(family: string): string {
   return GENERIC_FONT_FAMILIES.has(family) ? family : `"${family}"`
 }
@@ -430,12 +560,6 @@ const FONT_FORMAT_NAMES: Record<string, string> = {
   otf: 'opentype',
 }
 
-/** One @font-face rule per custom font. The family and the URL are both validated
- * before they reach CSS text; an entry failing either is dropped. */
-/** An absolute http(s) URL, or a root-relative path - never a protocol-relative
- * "//host" one. http is allowed because a font endpoint is plain http in local
- * development; the characters that could break out of `url("...")` are rejected either
- * way. */
 function isSafeFontUrl(url: string): boolean {
   if (/["'()\\\s]/.test(url)) return false
   return /^https?:\/\/[^/]/.test(url) || /^\/[^/]/.test(url)
@@ -448,13 +572,6 @@ export function buildFontFaceCss(fonts: CustomFontRef[]): string {
     .join('\n')
 }
 
-/**
- * Styles for a post's rich body, scoped under `.pw-rich-content`. Post HTML is plain
- * semantic tags with no classes, so without this it renders as flat text.
- *
- * `list-style-type` and `display: list-item` are explicit because CSS resets commonly
- * clear them, which would hide every bullet in a post.
- */
 export const RICH_CONTENT_CSS = `
 .pw-rich-content { line-height: 1.65; font-size: 16px; }
 .pw-rich-content h1, .pw-rich-content h2, .pw-rich-content h3 { font-weight: 700; line-height: 1.3; margin: 0.8em 0 0.3em; }

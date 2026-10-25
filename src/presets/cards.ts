@@ -62,7 +62,7 @@ export const cardsList: TemplateDocument = {
               },
               children: [
                 {
-                  type: 'heading',
+                  type: 'text',
                   id: 'card-card-title',
                   style: {
                     fontSize: 23,
@@ -172,7 +172,7 @@ export const cardsPost: TemplateDocument = {
             },
             children: [
               {
-                type: 'heading',
+                type: 'text',
                 id: 'card-title',
                 style: {
                   fontSize: 40,
@@ -204,9 +204,10 @@ export const cardsPost: TemplateDocument = {
               },
               { type: 'divider', id: 'card-rule', style: { marginTop: 28, borderColor: RULE } },
               {
-                type: 'richContent',
+                type: 'text',
                 id: 'card-body',
                 style: { fontSize: 17, marginTop: 28, lineHeight: 1.75 },
+                content: { source: 'binding', binding: 'post.content' },
               },
               {
                 type: 'carousel',
@@ -220,7 +221,7 @@ export const cardsPost: TemplateDocument = {
         ],
       },
       {
-        type: 'heading',
+        type: 'text',
         id: 'card-more-label',
         style: { fontSize: 15, fontWeight: 600, color: MUTED, marginTop: 56 },
         level: 2,

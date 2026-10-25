@@ -5,29 +5,18 @@ import type { CarouselNavigation } from './template-schema'
 import type { CssProps } from './style-utils'
 
 export interface CarouselStripProps {
-  /** Absolute URLs of the post's gallery photos, already filtered and capped. */
   images: string[]
-  /** Fixed width for each photo - see CAROUSEL_IMAGE_WIDTHS in style-utils.ts. */
   imageWidth: number
-  /** Space between photos, in px. */
   gap: number
-  /** The block's own resolved style, painted on the outer box that wraps the strip. */
   style: CssProps
-  /** The parts of that style that belong to each photo instead - rounding and borders.
-   * See carouselCssProps in style-utils.ts for why they cannot live on the box. */
   photoStyle: CssProps
-  /** Arrow buttons, or leave moving along the strip to the wheel/trackpad/touch. */
   navigation: CarouselNavigation
-  /** The block's id, for canvas selection, hover rules and responsive rules alike. */
   nodeId: string
-  /** Alt text stem - each photo is numbered off it ("Post title, photo 2 of 4"). */
   altPrefix: string
 }
 
 const ARROW_SIZE = 32
 
-/** Every photo is drawn in a box this shape, whatever its own proportions - see the
- * `aspectRatio` comment on the <img> below. */
 export const CAROUSEL_ASPECT_RATIO = '4 / 3'
 
 function arrowStyle(side: 'left' | 'right'): React.CSSProperties {

@@ -13,51 +13,31 @@ export interface PublicPost {
   content: unknown
   published_at: string | null
   updated_at?: string
-  /** Plain-text summary, derived server-side from `content` at read time. */
   excerpt?: string
-  /** Sanitized-by-construction HTML rendering of `content`, computed client-side at save time. */
   contentHtml?: string
-  /** Denormalized read counter, incremented by the single-post endpoint. Single-post responses only. */
   view_count?: number
-  /** Up to 3 other posts from the same blog, most recent first. Single-post responses only. */
   relatedPosts?: PublicPost[]
-  /** This post's headings, derived server-side from `content` at read time, for a "table of contents" block. */
   headings?: PostHeading[]
-  /** Byline, when the post names one. Free text, not a BlogBuddy user - a guest post
-   * has an author too. Falls back to the blog's configured author for SEO purposes. */
   author?: string | null
-  /** Meta/OG title override. The visible headline stays `title` either way. */
   seoTitle?: string | null
-  /** Meta description override, ahead of the derived excerpt. */
   seoDescription?: string | null
-  /** Keeps the post out of search indexes while leaving it publicly readable. */
   seoNoindex?: boolean
 }
 
 export interface BindingContext {
   post: PublicPost
-  /** e.g. "/blog/{slug}" - how the customer's own site routes to a post. Required to resolve post.url. */
   postUrlTemplate?: string
 }
 
-/** Live pagination state, threaded through the render context so a `pagination` block
- * can draw itself wherever it sits in the tree. */
 export interface PaginationRenderState {
   page: number
   totalPages: number
   loading: boolean
-  /** Callback mode (the client `<BlogBuddy.List>`): page changes are state updates, so
-   * the nav renders <button>s and the list swaps in place without a navigation. */
   onPageChange?: (page: number) => void
   onLoadMore?: () => void
-  /** Link mode (the server `<BlogBuddyList>`): a URL pattern containing `{page}`, e.g.
-   * "?page={page}" or "/blog/page/{page}". A server component has no click handler to
-   * attach, so the nav renders real <a href>s - which is also what makes each page a
-   * crawlable URL. Takes precedence over the callbacks if both are set. */
   hrefTemplate?: string
 }
 
-/** Substitutes a page number into a `hrefTemplate` - see PaginationRenderState. */
 export function paginationHref(template: string, page: number): string {
   return template.replace(/\{page\}/g, String(page))
 }
@@ -80,7 +60,6 @@ function docTopLevelNodes(content: unknown): unknown[] {
   return Array.isArray(nodes) ? nodes : []
 }
 
-/** Flattens a Tiptap document into plain text, one line per top-level node (structure like headings/lists isn't preserved beyond that - this is a simple summary, not a rendering). Exported so the public API routes can precompute `excerpt` server-side. */
 export function extractContentText(content: unknown): string {
   return docTopLevelNodes(content)
     .map(nodeText)
@@ -88,8 +67,6 @@ export function extractContentText(content: unknown): string {
     .join('\n\n')
 }
 
-/** A post's summary line: its opening prose, cut at a word boundary. Only
- * paragraph-like nodes contribute, so a heading never lands in the middle of it. */
 export function buildExcerpt(content: unknown, maxLength = MAX_EXCERPT_LENGTH): string {
   const PROSE_TYPES = new Set(['paragraph', 'blockquote', 'bulletList', 'orderedList'])
 
@@ -112,9 +89,6 @@ export function buildExcerpt(content: unknown, maxLength = MAX_EXCERPT_LENGTH): 
   return `${cut.replace(/[,;:.\s]+$/, '')}…`
 }
 
-/** Walks a document for heading nodes, for the "table of contents" block. Heading ids
- * are assigned once at save time and read back as-is, so they always match the `id`
- * attributes in the sibling `contentHtml`. */
 export function extractHeadings(content: unknown): PostHeading[] {
   const headings: PostHeading[] = []
 
@@ -135,13 +109,8 @@ export function extractHeadings(content: unknown): PostHeading[] {
   return headings
 }
 
-/** How many gallery photos a post can carry. Enforced in the post editor's own
- * uploader, again server-side in savePost, and used as the ceiling on the design
- * constructor's "Sample photos" preview counter. */
 export const MAX_GALLERY_IMAGES = 5
 
-/** A post's extra photos, from `content.galleryImages`. Empty and non-string entries
- * are dropped and the list is capped. */
 export function extractGalleryImages(content: unknown): string[] {
   if (!content || typeof content !== 'object') return []
   const raw = (content as { galleryImages?: unknown }).galleryImages
@@ -162,7 +131,6 @@ function extractCoverImage(content: unknown): string {
   return ''
 }
 
-/** Reads the pre-rendered HTML stored alongside a post's blocks. Exported so the public API routes can surface it as `contentHtml`. */
 export function extractContentHtml(content: unknown): string {
   if (
     content &&
@@ -197,7 +165,6 @@ const MONTHS_LONG = [
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
-/** Built from UTC parts, not toLocaleDateString, whose ICU tables differ host to host. */
 export function formatPostDate(value: string, format: DateFormat = DEFAULT_DATE_FORMAT): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
@@ -225,15 +192,12 @@ export function formatPostDate(value: string, format: DateFormat = DEFAULT_DATE_
   }
 }
 
-/** Fixed, so server and client agree. The 17th tells 03/17 from 17/03 apart. */
 export const DATE_FORMAT_SAMPLE = '2026-03-17T00:00:00.000Z'
 
-/** Every format with the example the picker shows for it. */
 export function dateFormatOptions(sample: string = DATE_FORMAT_SAMPLE): { value: DateFormat; example: string }[] {
   return DATE_FORMATS.map((value) => ({ value, example: formatPostDate(sample, value) }))
 }
 
-/** Resolves a fixed DataBindingKey against a post. Never evaluates the key as code - it's an enum, matched by a switch. */
 export function resolveBinding(
   key: DataBindingKey,
   ctx: BindingContext,
@@ -246,6 +210,8 @@ export function resolveBinding(
       return extractContentText(ctx.post.content)
     case 'post.excerpt':
       return ctx.post.excerpt ?? buildExcerpt(ctx.post.content)
+    case 'post.author':
+      return ctx.post.author ?? ''
     case 'post.coverImage':
       return extractCoverImage(ctx.post.content)
     case 'post.publishedAt':

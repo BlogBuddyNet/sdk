@@ -18,34 +18,20 @@ import {
 
 
 interface SharedProps extends BlogBuddyClientOptions {
-  /** e.g. "/blog/{slug}" - how this app routes to a post, for the links in the design
-   * and for the canonical URL. Whatever your router expects. */
   postUrlTemplate?: string
-  /** e.g. "/blog?page={page}". Without it the index URL is guessed by stripping {slug}
-   * off postUrlTemplate, which is wrong when the index is not the posts' parent. */
   pageUrlTemplate?: string
-  /** Origin used for canonical and Open Graph URLs. Defaults to the browser's own
-   * origin, which is right for a single-page app served from the site it belongs to. */
   siteUrl?: string
-  /** Used for og:site_name and as the title suffix. */
   siteName?: string
-  /** Set false to render the design and no metadata - for a blog behind a login, or
-   * anywhere a page already manages its own head. */
   seo?: boolean
-  /** Shown while the design and posts load. A spinner or a skeleton belongs here. */
   fallback?: React.ReactNode
 }
 
 export interface BlogBuddyPostProps extends SharedProps {
-  /** The post to render. */
   slug: string
 }
 
 export interface BlogBuddyListProps extends SharedProps {
-  /** Posts per page. Omit to render every post in one go. The design's own pagination
-   * block decides whether that appears as numbered pages or a "Load more" button. */
   perPage?: number
-  /** The index page's own <title> and description. Defaults to "Blog". */
   title?: string
   description?: string
 }
@@ -58,8 +44,6 @@ function useSiteUrl(explicit?: string): string {
   return explicit ?? origin
 }
 
-/** The tags React 19 lifts into <head>. Rendered only once the data they describe has
- * arrived - a canonical pointing at a half-loaded page is worse than none. */
 function HeadTags({
   title,
   description,
@@ -99,8 +83,6 @@ function HeadTags({
   )
 }
 
-/** JSON-LD stays a plain script. React hoists title/meta/link but not this, so it lands
- * in <body> - which Google accepts, and which is the only option without a server. */
 function JsonLdScript({ data }: { data: Record<string, unknown> }) {
   return (
     <script
@@ -130,14 +112,6 @@ function ErrorBox({ error }: { error: string }) {
   )
 }
 
-/**
- * One post, rendered in the browser with the design from the Design tab.
- *
- *   <BlogBuddy.Post blog="field-notes" apiKey={KEY} slug={slug} />
- *
- * The key ships in the browser bundle here, so scope it to this one blog. The worst a
- * lifted key can then do is read posts that are already public.
- */
 function Post({
   blog,
   apiKey,
@@ -198,14 +172,6 @@ function Post({
   )
 }
 
-/**
- * The blog's list page, rendered in the browser with the design from the Design tab.
- *
- *   <BlogBuddy.List blog="field-notes" apiKey={KEY} perPage={10} />
- *
- * Paging is state rather than navigation, so the pagination block renders buttons that
- * swap posts in place.
- */
 function List({
   blog,
   apiKey,
@@ -280,6 +246,4 @@ function List({
   )
 }
 
-/** The browser-rendered pair. `BlogBuddy.Post` runs in the browser; `BlogBuddyPost`
- * from '@blogbuddy/sdk/server' runs on the server. Same design, same props. */
 export const BlogBuddy = { Post, List }

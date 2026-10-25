@@ -50,7 +50,7 @@ export const minimalList: TemplateDocument = {
               content: { source: 'binding', binding: 'post.publishedAt' },
             },
             {
-              type: 'heading',
+              type: 'text',
               id: 'min-row-title',
               style: {
                 fontSize: 34,
@@ -142,7 +142,7 @@ export const minimalPost: TemplateDocument = {
         content: { source: 'binding', binding: 'post.publishedAt' },
       },
       {
-        type: 'heading',
+        type: 'text',
         id: 'min-title',
         style: {
           fontSize: 44,
@@ -176,9 +176,10 @@ export const minimalPost: TemplateDocument = {
       },
       { type: 'divider', id: 'min-rule', style: { marginTop: 36, borderColor: RULE } },
       {
-        type: 'richContent',
+        type: 'text',
         id: 'min-body',
         style: { fontSize: 18, marginTop: 32, lineHeight: 1.75 },
+        content: { source: 'binding', binding: 'post.content' },
       },
       {
         type: 'carousel',
@@ -189,7 +190,7 @@ export const minimalPost: TemplateDocument = {
       },
       { type: 'divider', id: 'min-rule-end', style: { marginTop: 56, borderColor: RULE } },
       {
-        type: 'heading',
+        type: 'text',
         id: 'min-more-label',
         style: {
           fontSize: 15,
