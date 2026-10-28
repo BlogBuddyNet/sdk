@@ -160,8 +160,8 @@ function renderNodeInner(node: BlockNode, ctx: RenderContext): React.ReactNode {
           data-node-id={node.id}
           style={{
             ...(node.level ? { margin: 0 } : {}),
-            ...baseCssProps(node.style),
             whiteSpace: 'pre-wrap',
+            ...baseCssProps(node.style),
           }}
         >
           {truncateText(resolveText(node.content, ctx), node.maxChars)}

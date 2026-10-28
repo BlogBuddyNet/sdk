@@ -181,9 +181,6 @@ function coreCssProps(style: BlockStyle): CssProps {
     props.WebkitLineClamp = style.lineClamp
     props.WebkitBoxOrient = 'vertical'
     props.overflow = 'hidden'
-    if (style.lineHeight !== undefined) {
-      props.maxHeight = `${Number((style.lineHeight * style.lineClamp).toFixed(4))}em`
-    }
   }
   return props
 }
