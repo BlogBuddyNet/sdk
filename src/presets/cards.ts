@@ -213,6 +213,7 @@ export const cardsPost: TemplateDocument = {
                 type: 'carousel',
                 id: 'card-gallery',
                 style: { marginTop: 36 },
+                photoStyle: {},
                 imageSize: 'medium',
                 navigation: 'arrows',
               },

@@ -214,6 +214,7 @@ export const compactPost: TemplateDocument = {
             type: 'carousel',
             id: 'cmp-gallery',
             style: { marginTop: 36 },
+            photoStyle: {},
             imageSize: 'medium',
             navigation: 'arrows',
           },

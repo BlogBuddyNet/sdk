@@ -322,6 +322,7 @@ export interface CarouselNode {
   style: BlockStyle
   imageSize: CarouselImageSize
   navigation?: CarouselNavigation
+  photoStyle?: BlockStyle
 }
 
 export type BlockNode =
@@ -427,6 +428,7 @@ const carouselSchema = z.object({
   style: blockStyleSchema,
   imageSize: z.enum(CAROUSEL_IMAGE_SIZES),
   navigation: z.enum(CAROUSEL_NAVIGATIONS).optional(),
+  photoStyle: blockStyleSchema.optional(),
 })
 
 const paginationNodeSchema = z.object({

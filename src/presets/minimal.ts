@@ -185,6 +185,7 @@ export const minimalPost: TemplateDocument = {
         type: 'carousel',
         id: 'min-gallery',
         style: { marginTop: 36 },
+        photoStyle: {},
         imageSize: 'medium',
         navigation: 'arrows',
       },

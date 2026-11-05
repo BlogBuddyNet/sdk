@@ -1,4 +1,4 @@
-import type { BlockNode, BlockStyle, CustomFontRef } from './template-schema'
+import type { BlockNode, BlockStyle, CarouselNode, CustomFontRef } from './template-schema'
 import { CUSTOM_CSS_BLOCK_PATTERN, CUSTOM_CSS_CONDITION_PATTERN } from './template-schema'
 import { getChildren } from './template-tree-utils'
 
@@ -258,25 +258,35 @@ export function buildStateCss(root: BlockNode): string {
 
   function visit(node: BlockNode) {
     for (const { key, pseudos } of STATES) {
-      const state = 'style' in node ? node.style?.[key] : undefined
-      if (!state) continue
-
       if (node.type === 'carousel') {
         const base = `[data-node-id="${escapeAttrValue(node.id)}"]`
-        const matched = pseudos.map((pseudo) => `${base}${pseudo}`)
-        const { box, photo } = carouselCssProps(state)
-        const boxDeclarations = cssDeclarations(box)
-        if (boxDeclarations) {
-          rules.push(`${matched.join(', ')} { ${boxDeclarations}; ${STATE_TRANSITION} }`)
+        const state = node.style?.[key]
+        if (state) {
+          const matched = pseudos.map((pseudo) => `${base}${pseudo}`)
+          const { box, photo } = carouselCssProps(state, node.photoStyle && {})
+          const boxDeclarations = cssDeclarations(box)
+          if (boxDeclarations) {
+            rules.push(`${matched.join(', ')} { ${boxDeclarations}; ${STATE_TRANSITION} }`)
+          }
+          const photoDeclarations = cssDeclarations(photo)
+          if (photoDeclarations) {
+            rules.push(
+              `${matched.map((selector) => `${selector} img`).join(', ')} { ${photoDeclarations}; ${STATE_TRANSITION} }`
+            )
+          }
         }
-        const photoDeclarations = cssDeclarations(photo)
-        if (photoDeclarations) {
+        const photoState = node.photoStyle?.[key]
+        const photoStateDeclarations = photoState ? cssDeclarations(carouselPhotoCssProps(photoState)) : ''
+        if (photoStateDeclarations) {
           rules.push(
-            `${matched.map((selector) => `${selector} img`).join(', ')} { ${photoDeclarations}; ${STATE_TRANSITION} }`
+            `${pseudos.map((pseudo) => `${base} img${pseudo}`).join(', ')} { ${photoStateDeclarations}; ${STATE_TRANSITION} }`
           )
         }
         continue
       }
+
+      const state = 'style' in node ? node.style?.[key] : undefined
+      if (!state) continue
 
       const props = mergeCustomCss(coreCssProps(state), parseCustomCss(state.customCss))
       const declarations = Object.entries(props)
@@ -325,14 +335,64 @@ const CAROUSEL_PHOTO_PROPS = new Set([
   'borderColor',
 ])
 
-export function carouselCssProps(style: BlockStyle): { box: CssProps; photo: CssProps } {
+export function carouselCssProps(style: BlockStyle, photoStyle?: BlockStyle): { box: CssProps; photo: CssProps } {
+  const all = mergeCustomCss(coreCssProps(style), parseCustomCss(style.customCss))
+  if (photoStyle) return { box: all, photo: carouselPhotoCssProps(photoStyle) }
   const box: CssProps = {}
   const photo: CssProps = {}
-  for (const [prop, value] of Object.entries(mergeCustomCss(coreCssProps(style), parseCustomCss(style.customCss)))) {
+  for (const [prop, value] of Object.entries(all)) {
     if (CAROUSEL_PHOTO_PROPS.has(prop)) photo[prop] = value
     else box[prop] = value
   }
   return { box, photo }
+}
+
+export function carouselPhotoCssProps(style: BlockStyle): CssProps {
+  const props = coreCssProps(style)
+  if (style.aspectRatio) props.aspectRatio = style.aspectRatio
+  if (style.objectFit) props.objectFit = style.objectFit
+  return mergeCustomCss(props, parseCustomCss(style.customCss))
+}
+
+const LEGACY_CAROUSEL_PHOTO_KEYS = [
+  'borderRadius',
+  'borderRadiusTopLeft',
+  'borderRadiusTopRight',
+  'borderRadiusBottomRight',
+  'borderRadiusBottomLeft',
+  'borderWidth',
+  'borderColor',
+  'borderColorOpacity',
+] as const
+
+function splitLegacyCarouselState(style: BlockStyle): { box: BlockStyle; photo: BlockStyle } {
+  const box: BlockStyle = { ...style }
+  const photo: BlockStyle = {}
+  for (const key of LEGACY_CAROUSEL_PHOTO_KEYS) {
+    if (style[key] === undefined) continue
+    ;(photo as Record<string, unknown>)[key] = style[key]
+    delete box[key]
+  }
+  return { box, photo }
+}
+
+export function withCarouselPhotoStyle(node: CarouselNode): CarouselNode {
+  if (node.photoStyle) return node
+  const { hover, focus, ...rest } = node.style
+  const main = splitLegacyCarouselState(rest)
+  const style: BlockStyle = { ...main.box }
+  const photoStyle: BlockStyle = { ...main.photo }
+  if (hover) {
+    const split = splitLegacyCarouselState(hover)
+    style.hover = split.box
+    if (Object.keys(split.photo).length > 0) photoStyle.hover = split.photo
+  }
+  if (focus) {
+    const split = splitLegacyCarouselState(focus)
+    style.focus = split.box
+    if (Object.keys(split.photo).length > 0) photoStyle.focus = split.photo
+  }
+  return { ...node, style, photoStyle }
 }
 
 function cssDeclarations(props: CssProps, important = true): string {
@@ -400,7 +460,7 @@ export function blockCssText(node: BlockNode): string {
         : node.type === 'button'
           ? buttonCssProps(style)
           : node.type === 'carousel'
-            ? carouselCssProps(style).box
+            ? carouselCssProps(style, node.photoStyle).box
             : baseCssProps(style)
   const covered = customCssCovers(parseCustomCss(style.customCss))
   return Object.entries(props)

@@ -265,6 +265,7 @@ export const showcasePost: TemplateDocument = {
             type: 'carousel',
             id: 'show-gallery',
             style: { marginTop: 36 },
+            photoStyle: {},
             imageSize: 'medium',
             navigation: 'arrows',
           },

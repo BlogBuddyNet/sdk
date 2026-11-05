@@ -227,6 +227,7 @@ export const magazinePost: TemplateDocument = {
         type: 'carousel',
         id: 'mag-gallery',
         style: { marginTop: 36 },
+        photoStyle: {},
         imageSize: 'medium',
         navigation: 'arrows',
       },

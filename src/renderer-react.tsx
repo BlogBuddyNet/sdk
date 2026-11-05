@@ -273,7 +273,7 @@ function renderNodeInner(node: BlockNode, ctx: RenderContext): React.ReactNode {
     case 'carousel': {
       const images = extractGalleryImages(ctx.currentPost?.content)
       if (images.length === 0) return null
-      const { box, photo } = carouselCssProps(node.style)
+      const { box, photo } = carouselCssProps(node.style, node.photoStyle)
       const boxStyle = { ...BORDER_BOX, ...box }
       return (
         <CarouselStrip
