@@ -1,5 +1,6 @@
 import type { TemplateDocument } from '../template-schema'
 import { CURRENT_SCHEMA_VERSION } from '../template-schema'
+import { postPage } from './post-page'
 
 const INK = '#000000'
 const BODY = '#525252'
@@ -17,7 +18,6 @@ export const minimalList: TemplateDocument = {
       direction: 'column',
       background: PAPER,
       color: INK,
-      fontFamily: 'sans-serif',
       paddingTop: 64,
       paddingBottom: 64,
       paddingLeft: 28,
@@ -117,100 +117,4 @@ export const minimalList: TemplateDocument = {
   },
 }
 
-export const minimalPost: TemplateDocument = {
-  schemaVersion: CURRENT_SCHEMA_VERSION,
-  kind: 'post',
-  root: {
-    type: 'container',
-    id: 'min-root',
-    style: {
-      direction: 'column',
-      background: PAPER,
-      color: INK,
-      fontFamily: 'sans-serif',
-      paddingTop: 72,
-      paddingBottom: 88,
-      paddingLeft: 28,
-      paddingRight: 28,
-      customCss: '@container (max-width: 560px) { padding-top: 36px; padding-right: 18px; padding-bottom: 48px; padding-left: 18px }',
-    },
-    children: [
-      {
-        type: 'text',
-        id: 'min-date',
-        style: { fontSize: 15, color: MUTED },
-        content: { source: 'binding', binding: 'post.publishedAt' },
-      },
-      {
-        type: 'text',
-        id: 'min-title',
-        style: {
-          fontSize: 44,
-          fontWeight: 700,
-          marginTop: 14,
-          letterSpacing: -0.026,
-          lineHeight: 1.14,
-          customCss: '@container (max-width: 560px) { font-size: 30px }',
-        },
-        level: 1,
-        content: { source: 'binding', binding: 'post.title' },
-      },
-      {
-        type: 'text',
-        id: 'min-standfirst',
-        style: {
-          fontSize: 20,
-          color: BODY,
-          marginTop: 18,
-          lineHeight: 1.55,
-          customCss: '@container (max-width: 560px) { font-size: 17px }',
-        },
-        content: { source: 'binding', binding: 'post.excerpt' },
-      },
-      {
-        type: 'image',
-        id: 'min-cover',
-        style: { marginTop: 36, aspectRatio: '16/9', objectFit: 'cover', borderRadius: 4 },
-        source: { source: 'binding', binding: 'post.coverImage' },
-        alt: '',
-      },
-      { type: 'divider', id: 'min-rule', style: { marginTop: 36, borderColor: RULE } },
-      {
-        type: 'text',
-        id: 'min-body',
-        style: { fontSize: 18, marginTop: 32, lineHeight: 1.75 },
-        content: { source: 'binding', binding: 'post.content' },
-      },
-      {
-        type: 'carousel',
-        id: 'min-gallery',
-        style: { marginTop: 36 },
-        photoStyle: {},
-        imageSize: 'medium',
-        navigation: 'arrows',
-      },
-      { type: 'divider', id: 'min-rule-end', style: { marginTop: 56, borderColor: RULE } },
-      {
-        type: 'text',
-        id: 'min-more-label',
-        style: {
-          fontSize: 15,
-          fontWeight: 600,
-          color: MUTED,
-          marginTop: 32,
-          letterSpacing: 0.02,
-        },
-        level: 2,
-        content: { source: 'literal', value: 'More posts' },
-      },
-      {
-        type: 'relatedPosts',
-        id: 'min-related',
-        style: { marginTop: 18 },
-        source: 'blog',
-        order: 'newest',
-      },
-    
-    ],
-  },
-}
+export const minimalPost: TemplateDocument = postPage({ prefix: 'min', ink: INK, muted: MUTED, rule: RULE, paper: PAPER, titleSize: 44, titleSizeNarrow: 30, coverRadius: 4, coverAspect: '16/9' })

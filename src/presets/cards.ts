@@ -1,5 +1,6 @@
 import type { TemplateDocument } from '../template-schema'
 import { CURRENT_SCHEMA_VERSION } from '../template-schema'
+import { postPage } from './post-page'
 
 const INK = '#000000'
 const BODY = '#3f3f46'
@@ -18,7 +19,6 @@ export const cardsList: TemplateDocument = {
       direction: 'column',
       background: PAPER,
       color: INK,
-      fontFamily: 'sans-serif',
       paddingTop: 64,
       paddingBottom: 80,
       paddingLeft: 28,
@@ -123,119 +123,4 @@ export const cardsList: TemplateDocument = {
   },
 }
 
-export const cardsPost: TemplateDocument = {
-  schemaVersion: CURRENT_SCHEMA_VERSION,
-  kind: 'post',
-  root: {
-    type: 'container',
-    id: 'card-root',
-    style: {
-      direction: 'column',
-      background: PAPER,
-      color: INK,
-      fontFamily: 'sans-serif',
-      paddingTop: 56,
-      paddingBottom: 80,
-      paddingLeft: 24,
-      paddingRight: 24,
-      customCss: '@container (max-width: 560px) { padding-top: 28px; padding-right: 16px; padding-bottom: 48px; padding-left: 16px }',
-    },
-    children: [
-      {
-        type: 'container',
-        id: 'card-sheet',
-        style: {
-          direction: 'column',
-          background: CARD,
-          borderRadius: 24,
-          clip: true,
-          boxShadow: 'md',
-        },
-        children: [
-          {
-            type: 'image',
-            id: 'card-cover',
-            style: { aspectRatio: '16/9', objectFit: 'cover' },
-            source: { source: 'binding', binding: 'post.coverImage' },
-            alt: '',
-          },
-          {
-            type: 'container',
-            id: 'card-sheet-body',
-            style: {
-              direction: 'column',
-              paddingTop: 44,
-              paddingBottom: 48,
-              paddingLeft: 44,
-              paddingRight: 44,
-              customCss: '@container (max-width: 560px) { padding-top: 30px; padding-right: 22px; padding-bottom: 34px; padding-left: 22px }',
-            },
-            children: [
-              {
-                type: 'text',
-                id: 'card-title',
-                style: {
-                  fontSize: 40,
-                  fontWeight: 700,
-                  letterSpacing: -0.028,
-                  lineHeight: 1.14,
-                  customCss: '@container (max-width: 560px) { font-size: 28px }',
-                },
-                level: 1,
-                content: { source: 'binding', binding: 'post.title' },
-              },
-              {
-                type: 'text',
-                id: 'card-standfirst',
-                style: {
-                  fontSize: 18,
-                  color: BODY,
-                  marginTop: 16,
-                  lineHeight: 1.6,
-                  customCss: '@container (max-width: 560px) { font-size: 16px }',
-                },
-                content: { source: 'binding', binding: 'post.excerpt' },
-              },
-              {
-                type: 'text',
-                id: 'card-date',
-                style: { fontSize: 13, color: MUTED, marginTop: 20 },
-                content: { source: 'binding', binding: 'post.publishedAt' },
-              },
-              { type: 'divider', id: 'card-rule', style: { marginTop: 28, borderColor: RULE } },
-              {
-                type: 'text',
-                id: 'card-body',
-                style: { fontSize: 17, marginTop: 28, lineHeight: 1.75 },
-                content: { source: 'binding', binding: 'post.content' },
-              },
-              {
-                type: 'carousel',
-                id: 'card-gallery',
-                style: { marginTop: 36 },
-                photoStyle: {},
-                imageSize: 'medium',
-                navigation: 'arrows',
-              },
-            ],
-          },
-        ],
-      },
-      {
-        type: 'text',
-        id: 'card-more-label',
-        style: { fontSize: 15, fontWeight: 600, color: MUTED, marginTop: 56 },
-        level: 2,
-        content: { source: 'literal', value: 'More posts' },
-      },
-      {
-        type: 'relatedPosts',
-        id: 'card-related',
-        style: { marginTop: 18 },
-        source: 'blog',
-        order: 'newest',
-      },
-    
-    ],
-  },
-}
+export const cardsPost: TemplateDocument = postPage({ prefix: 'card', ink: INK, muted: MUTED, rule: RULE, paper: PAPER, titleSize: 40, titleSizeNarrow: 28, coverRadius: 24, coverAspect: '16/9' })

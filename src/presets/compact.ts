@@ -1,5 +1,6 @@
 import type { TemplateDocument } from '../template-schema'
 import { CURRENT_SCHEMA_VERSION } from '../template-schema'
+import { postPage } from './post-page'
 
 const INK = '#000000'
 const BODY = '#3a3a3a'
@@ -17,7 +18,6 @@ export const compactList: TemplateDocument = {
       direction: 'column',
       background: PAPER,
       color: INK,
-      fontFamily: 'sans-serif',
       paddingTop: 64,
       paddingBottom: 80,
       paddingLeft: 28,
@@ -128,125 +128,4 @@ export const compactList: TemplateDocument = {
   },
 }
 
-export const compactPost: TemplateDocument = {
-  schemaVersion: CURRENT_SCHEMA_VERSION,
-  kind: 'post',
-  root: {
-    type: 'container',
-    id: 'cmp-root',
-    style: {
-      direction: 'column',
-      background: PAPER,
-      color: INK,
-      fontFamily: 'sans-serif',
-      paddingTop: 56,
-      paddingBottom: 80,
-      paddingLeft: 28,
-      paddingRight: 28,
-      customCss: '@container (max-width: 560px) { padding-top: 28px; padding-right: 18px; padding-bottom: 48px; padding-left: 18px }',
-    },
-    children: [
-      {
-        type: 'container',
-        id: 'cmp-sheet',
-        style: {
-          direction: 'column',
-          borderWidth: 1,
-          borderColor: EDGE,
-          paddingTop: 30,
-          paddingBottom: 40,
-          paddingLeft: 34,
-          paddingRight: 34,
-          customCss: '@container (max-width: 560px) { padding-top: 20px; padding-right: 18px; padding-bottom: 28px; padding-left: 18px }',
-        },
-        children: [
-          {
-            type: 'image',
-            id: 'cmp-cover',
-            style: { aspectRatio: '16/9', objectFit: 'cover' },
-            source: { source: 'binding', binding: 'post.coverImage' },
-            alt: '',
-          },
-          {
-            type: 'text',
-            id: 'cmp-title',
-            style: {
-              fontSize: 34,
-              fontWeight: 700,
-              background: PAPER,
-              paddingTop: 14,
-              paddingBottom: 8,
-              paddingLeft: 18,
-              paddingRight: 18,
-              letterSpacing: -0.024,
-              lineHeight: 1.18,
-              textAlign: 'center',
-              layer: 'front',
-              marginTop: -34,
-              marginLeft: 48,
-              marginRight: 48,
-              alignSelf: 'center',
-              widthUnit: 'fit',
-              customCss: '@container (max-width: 560px) { margin-top: -24px; font-size: 25px; line-height: 1.2; letter-spacing: -0.02em; margin-left: 16px; margin-right: 16px }',
-            },
-            level: 1,
-            content: { source: 'binding', binding: 'post.title' },
-          },
-          {
-            type: 'text',
-            id: 'cmp-standfirst',
-            style: {
-              fontSize: 17,
-              color: BODY,
-              marginTop: 22,
-              lineHeight: 1.6,
-              customCss: '@container (max-width: 560px) { font-size: 16px }',
-            },
-            content: { source: 'binding', binding: 'post.excerpt' },
-          },
-          {
-            type: 'text',
-            id: 'cmp-body',
-            style: { fontSize: 17, marginTop: 28, lineHeight: 1.75 },
-            content: { source: 'binding', binding: 'post.content' },
-          },
-          {
-            type: 'carousel',
-            id: 'cmp-gallery',
-            style: { marginTop: 36 },
-            photoStyle: {},
-            imageSize: 'medium',
-            navigation: 'arrows',
-          },
-          {
-            type: 'text',
-            id: 'cmp-date',
-            style: {
-              fontSize: 14,
-              color: MUTED,
-              textAlign: 'center',
-              marginTop: 44,
-              letterSpacing: 0.06,
-            },
-            content: { source: 'binding', binding: 'post.publishedAt', dateFormat: 'monthDayYearDash' },
-          },
-        ],
-      },
-      {
-        type: 'text',
-        id: 'cmp-more-label',
-        style: { fontSize: 15, fontWeight: 600, color: MUTED, marginTop: 52 },
-        level: 2,
-        content: { source: 'literal', value: 'More posts' },
-      },
-      {
-        type: 'relatedPosts',
-        id: 'cmp-related',
-        style: { marginTop: 18 },
-        source: 'blog',
-        order: 'newest',
-      },
-    
-    ],
-  },
-}
+export const compactPost: TemplateDocument = postPage({ prefix: 'cmp', ink: INK, muted: MUTED, rule: '#e5e5e5', paper: PAPER, titleSize: 34, titleSizeNarrow: 25, coverRadius: 0, coverAspect: '16/9', dateFormat: 'monthDayYearDash' })

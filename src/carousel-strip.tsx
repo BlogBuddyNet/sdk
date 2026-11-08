@@ -69,6 +69,8 @@ export function CarouselStrip({
         maxWidth: '100%',
         ...(style as React.CSSProperties),
         position: 'relative',
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0, 1fr)',
       }}
     >
       <div

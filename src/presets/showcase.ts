@@ -1,5 +1,6 @@
 import type { TemplateDocument } from '../template-schema'
 import { CURRENT_SCHEMA_VERSION } from '../template-schema'
+import { postPage } from './post-page'
 
 const INK = '#111827'
 const BODY = '#1f2937'
@@ -17,7 +18,6 @@ export const showcaseList: TemplateDocument = {
       direction: 'column',
       background: PAPER,
       color: INK,
-      fontFamily: 'sans-serif',
       paddingTop: 64,
       paddingBottom: 80,
       paddingLeft: 28,
@@ -155,137 +155,4 @@ export const showcaseList: TemplateDocument = {
   },
 }
 
-export const showcasePost: TemplateDocument = {
-  schemaVersion: CURRENT_SCHEMA_VERSION,
-  kind: 'post',
-  root: {
-    type: 'container',
-    id: 'show-root',
-    style: { direction: 'column', background: PAPER, color: INK, fontFamily: 'sans-serif' },
-    children: [
-      {
-        type: 'container',
-        id: 'show-hero',
-        style: {
-          direction: 'column',
-          background: '#f3f4f6',
-          clip: true,
-          minHeight: 460,
-          customCss: '@container (max-width: 560px) { min-height: 320px }',
-        },
-        children: [
-          {
-            type: 'image',
-            id: 'show-cover',
-            style: { objectFit: 'cover', layer: 'fill' },
-            source: { source: 'binding', binding: 'post.coverImage' },
-            alt: '',
-          },
-          {
-            type: 'container',
-            id: 'show-hero-panel',
-            style: {
-              direction: 'column',
-              background: PAPER,
-              backgroundOpacity: 22,
-              paddingTop: 32,
-              paddingBottom: 32,
-              paddingLeft: 28,
-              paddingRight: 28,
-              layer: 'front',
-              pushToEnd: true,
-              customCss: '@container (max-width: 560px) { padding-top: 22px; padding-right: 18px; padding-bottom: 22px; padding-left: 18px }',
-            },
-            children: [
-              {
-                type: 'container',
-                id: 'show-hero-column',
-                style: { direction: 'column', maxWidth: 760, alignSelf: 'center', width: 100, widthUnit: 'percent' },
-                children: [
-                  {
-                    type: 'text',
-                    id: 'show-title',
-                    style: {
-                      fontSize: 42,
-                      fontWeight: 700,
-                      letterSpacing: -0.028,
-                      lineHeight: 1.14,
-                      customCss: '@container (max-width: 560px) { font-size: 28px }',
-                    },
-                    level: 1,
-                    content: { source: 'binding', binding: 'post.title' },
-                  },
-                  {
-                    type: 'text',
-                    id: 'show-date',
-                    style: { fontSize: 13, color: MUTED, marginTop: 14 },
-                    content: { source: 'binding', binding: 'post.publishedAt' },
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-      {
-        type: 'container',
-        id: 'show-shell',
-        style: {
-          direction: 'column',
-          paddingTop: 48,
-          paddingBottom: 80,
-          paddingLeft: 28,
-          paddingRight: 28,
-          maxWidth: 760,
-          centerHorizontally: true,
-          width: 100,
-          widthUnit: 'percent',
-          customCss: '@container (max-width: 560px) { padding-top: 28px; padding-right: 18px; padding-bottom: 48px; padding-left: 18px }',
-        },
-        children: [
-          {
-            type: 'text',
-            id: 'show-standfirst',
-            style: {
-              fontSize: 19,
-              color: BODY,
-              lineHeight: 1.6,
-              customCss: '@container (max-width: 560px) { font-size: 17px }',
-            },
-            content: { source: 'binding', binding: 'post.excerpt' },
-          },
-          { type: 'divider', id: 'show-rule', style: { marginTop: 28, borderColor: RULE } },
-          {
-            type: 'text',
-            id: 'show-body',
-            style: { fontSize: 17, marginTop: 28, lineHeight: 1.75 },
-            content: { source: 'binding', binding: 'post.content' },
-          },
-          {
-            type: 'carousel',
-            id: 'show-gallery',
-            style: { marginTop: 36 },
-            photoStyle: {},
-            imageSize: 'medium',
-            navigation: 'arrows',
-          },
-          { type: 'divider', id: 'show-rule-end', style: { marginTop: 56, borderColor: RULE } },
-          {
-            type: 'text',
-            id: 'show-more-label',
-            style: { fontSize: 15, fontWeight: 600, color: MUTED, marginTop: 32 },
-            level: 2,
-            content: { source: 'literal', value: 'More posts' },
-          },
-          {
-            type: 'relatedPosts',
-            id: 'show-related',
-            style: { marginTop: 18 },
-            source: 'blog',
-            order: 'newest',
-          },
-        ],
-      },
-    ],
-  },
-}
+export const showcasePost: TemplateDocument = postPage({ prefix: 'show', ink: INK, muted: MUTED, rule: RULE, paper: PAPER, titleSize: 42, titleSizeNarrow: 28, coverRadius: 12, coverAspect: '16/9' })

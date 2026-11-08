@@ -1,5 +1,6 @@
 import type { TemplateDocument } from '../template-schema'
 import { CURRENT_SCHEMA_VERSION } from '../template-schema'
+import { postPage } from './post-page'
 
 const INK = '#0b0b0c'
 const BODY = '#4b4b52'
@@ -18,7 +19,6 @@ export const magazineList: TemplateDocument = {
       direction: 'column',
       background: PAPER,
       color: INK,
-      fontFamily: 'sans-serif',
       paddingTop: 64,
       paddingBottom: 80,
       paddingLeft: 28,
@@ -160,93 +160,4 @@ export const magazineList: TemplateDocument = {
   },
 }
 
-export const magazinePost: TemplateDocument = {
-  schemaVersion: CURRENT_SCHEMA_VERSION,
-  kind: 'post',
-  root: {
-    type: 'container',
-    id: 'mag-root',
-    style: {
-      direction: 'column',
-      background: PAPER,
-      color: INK,
-      fontFamily: 'sans-serif',
-      paddingTop: 64,
-      paddingBottom: 88,
-      paddingLeft: 28,
-      paddingRight: 28,
-      customCss: '@container (max-width: 560px) { padding-top: 32px; padding-right: 18px; padding-bottom: 48px; padding-left: 18px }',
-    },
-    children: [
-      {
-        type: 'text',
-        id: 'mag-title',
-        style: {
-          fontSize: 42,
-          fontWeight: 700,
-          letterSpacing: -0.028,
-          lineHeight: 1.14,
-          customCss: '@container (max-width: 560px) { font-size: 29px }',
-        },
-        level: 1,
-        content: { source: 'binding', binding: 'post.title' },
-      },
-      {
-        type: 'text',
-        id: 'mag-date',
-        style: { fontSize: 13, color: MUTED, marginTop: 16 },
-        content: { source: 'binding', binding: 'post.publishedAt' },
-      },
-      {
-        type: 'image',
-        id: 'mag-cover',
-        style: { marginTop: 32, objectFit: 'cover', aspectRatio: '3/2', width: 100, widthUnit: 'percent' },
-        source: { source: 'binding', binding: 'post.coverImage' },
-        alt: '',
-      },
-      {
-        type: 'text',
-        id: 'mag-standfirst',
-        style: {
-          fontSize: 19,
-          color: BODY,
-          marginTop: 32,
-          lineHeight: 1.6,
-          customCss: '@container (max-width: 560px) { font-size: 17px }',
-        },
-        content: { source: 'binding', binding: 'post.excerpt' },
-      },
-      { type: 'divider', id: 'mag-rule', style: { marginTop: 28, borderColor: RULE } },
-      {
-        type: 'text',
-        id: 'mag-body',
-        style: { fontSize: 17, marginTop: 28, lineHeight: 1.75 },
-        content: { source: 'binding', binding: 'post.content' },
-      },
-      {
-        type: 'carousel',
-        id: 'mag-gallery',
-        style: { marginTop: 36 },
-        photoStyle: {},
-        imageSize: 'medium',
-        navigation: 'arrows',
-      },
-      { type: 'divider', id: 'mag-rule-end', style: { marginTop: 56, borderColor: RULE } },
-      {
-        type: 'text',
-        id: 'mag-more-label',
-        style: { fontSize: 15, fontWeight: 600, color: MUTED, marginTop: 32 },
-        level: 2,
-        content: { source: 'literal', value: 'More posts' },
-      },
-      {
-        type: 'relatedPosts',
-        id: 'mag-related',
-        style: { marginTop: 18 },
-        source: 'blog',
-        order: 'newest',
-      },
-    
-    ],
-  },
-}
+export const magazinePost: TemplateDocument = postPage({ prefix: 'mag', ink: INK, muted: MUTED, rule: RULE, paper: PAPER, titleSize: 42, titleSizeNarrow: 29, coverRadius: 0, coverAspect: '3/2' })
