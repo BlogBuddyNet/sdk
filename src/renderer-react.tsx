@@ -286,6 +286,7 @@ function renderNodeInner(node: BlockNode, ctx: RenderContext): React.ReactNode {
           photoStyle={photo}
           navigation={node.navigation ?? 'arrows'}
           altPrefix={ctx.currentPost?.title ? `${ctx.currentPost.title}, ` : ''}
+          viewer={!ctx.editing || Boolean(ctx.interactive)}
         />
       )
     }

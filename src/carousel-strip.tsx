@@ -3,6 +3,7 @@
 import * as React from 'react'
 import type { CarouselNavigation } from './template-schema'
 import type { CssProps } from './style-utils'
+import { ImageViewer } from './image-viewer'
 
 export interface CarouselStripProps {
   images: string[]
@@ -13,6 +14,7 @@ export interface CarouselStripProps {
   navigation: CarouselNavigation
   nodeId: string
   altPrefix: string
+  viewer?: boolean
 }
 
 const ARROW_SIZE = 32
@@ -52,8 +54,11 @@ export function CarouselStrip({
   navigation,
   nodeId,
   altPrefix,
+  viewer = false,
 }: CarouselStripProps) {
   const scrollerRef = React.useRef<HTMLDivElement>(null)
+  const [openAt, setOpenAt] = React.useState<number | null>(null)
+  const altFor = (index: number) => `${altPrefix}photo ${index + 1} of ${images.length}`
 
   const scrollByOne = (direction: 1 | -1) => {
     scrollerRef.current?.scrollBy({ left: direction * (imageWidth + gap), behavior: 'smooth' })
@@ -90,9 +95,23 @@ export function CarouselStrip({
           <img
             key={`${src}-${index}`}
             src={src}
-            alt={`${altPrefix}photo ${index + 1} of ${images.length}`}
+            alt={altFor(index)}
             loading="lazy"
+            {...(viewer
+              ? {
+                  tabIndex: 0,
+                  title: 'Open photo',
+                  onClick: () => setOpenAt(index),
+                  onKeyDown: (event: React.KeyboardEvent) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      setOpenAt(index)
+                    }
+                  },
+                }
+              : {})}
             style={{
+              ...(viewer ? { cursor: 'zoom-in' } : {}),
               flex: '0 0 auto',
               width: imageWidth,
               aspectRatio: CAROUSEL_ASPECT_RATIO,
@@ -114,6 +133,9 @@ export function CarouselStrip({
             {'›'}
           </button>
         </>
+      )}
+      {viewer && openAt !== null && (
+        <ImageViewer images={images} startIndex={openAt} altFor={altFor} onClose={() => setOpenAt(null)} />
       )}
     </div>
   )
