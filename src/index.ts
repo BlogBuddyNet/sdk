@@ -27,6 +27,8 @@ export {
   extractGalleryImages,
   buildExcerpt,
   MAX_GALLERY_IMAGES,
+  MAX_IMAGE_ALT_LENGTH,
+  imageAltFor,
   type PublicPost,
   type PostHeading,
 } from './post-data'

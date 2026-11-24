@@ -1,4 +1,4 @@
-import { extractContentText, type PublicPost } from './post-data'
+import { extractContentText, imageAltFor, type PublicPost } from './post-data'
 
 const MAX_DESCRIPTION_LENGTH = 160
 
@@ -6,6 +6,7 @@ interface ImageMeta {
   url: string
   width?: number
   height?: number
+  alt?: string
 }
 
 export interface SeoSiteConfig {
@@ -78,6 +79,7 @@ function postImage(post: PublicPost, config: SeoSiteConfig): ImageMeta | undefin
       url: absoluteImage(config, cover),
       width: content?.coverImageWidth,
       height: content?.coverImageHeight,
+      alt: imageAltFor(post.content, cover) || undefined,
     }
   }
   if (config.postImageUrlTemplate) {
@@ -128,7 +130,7 @@ export function buildPostMetadata(post: PublicPost, config: SeoSiteConfig) {
       publishedTime: post.published_at ?? undefined,
       modifiedTime: post.updated_at ?? post.published_at ?? undefined,
       ...(author ? { authors: [author] } : {}),
-      ...(image ? { images: [openGraphImage(image, title)] } : {}),
+      ...(image ? { images: [openGraphImage(image, image.alt ?? title)] } : {}),
     },
     twitter: {
       card: image ? ('summary_large_image' as const) : ('summary' as const),

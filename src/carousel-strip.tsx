@@ -14,6 +14,7 @@ export interface CarouselStripProps {
   navigation: CarouselNavigation
   nodeId: string
   altPrefix: string
+  alts?: string[]
   viewer?: boolean
 }
 
@@ -54,11 +55,12 @@ export function CarouselStrip({
   navigation,
   nodeId,
   altPrefix,
+  alts,
   viewer = false,
 }: CarouselStripProps) {
   const scrollerRef = React.useRef<HTMLDivElement>(null)
   const [openAt, setOpenAt] = React.useState<number | null>(null)
-  const altFor = (index: number) => `${altPrefix}photo ${index + 1} of ${images.length}`
+  const altFor = (index: number) => alts?.[index] || `${altPrefix}photo ${index + 1} of ${images.length}`
 
   const scrollByOne = (direction: 1 | -1) => {
     scrollerRef.current?.scrollBy({ left: direction * (imageWidth + gap), behavior: 'smooth' })

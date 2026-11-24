@@ -1,6 +1,6 @@
 import * as React from 'react'
 import type { BlockNode, CustomFontRef, ImageSource, Link, TemplateDocument, TextContent } from './template-schema'
-import { extractGalleryImages, resolveBinding, type PaginationRenderState, type PublicPost } from './post-data'
+import { extractGalleryImages, imageAltFor, resolveBinding, type PaginationRenderState, type PublicPost } from './post-data'
 import { PaginationNav } from './pagination-nav'
 import { CarouselStrip } from './carousel-strip'
 import { baseCssProps, BORDER_BOX, buildFontFaceCss, buildStateCss, buildResponsiveCss, buttonCssProps, CAROUSEL_DEFAULT_GAP, CAROUSEL_IMAGE_WIDTHS, carouselCssProps, containerCssProps, imageCssProps, RESPONSIVE_CONTAINER_NAME, RICH_CONTENT_CSS } from './style-utils'
@@ -177,7 +177,9 @@ function renderNodeInner(node: BlockNode, ctx: RenderContext): React.ReactNode {
           key={node.id}
           data-node-id={node.id}
           src={src}
-          alt={node.alt}
+          alt={
+            (node.source.source === 'binding' && imageAltFor(ctx.currentPost?.content, src)) || node.alt
+          }
           style={imageCssProps(node.style)}
         />
       )
@@ -286,6 +288,7 @@ function renderNodeInner(node: BlockNode, ctx: RenderContext): React.ReactNode {
           photoStyle={photo}
           navigation={node.navigation ?? 'arrows'}
           altPrefix={ctx.currentPost?.title ? `${ctx.currentPost.title}, ` : ''}
+          alts={images.map((src) => imageAltFor(ctx.currentPost?.content, src))}
           viewer={!ctx.editing || Boolean(ctx.interactive)}
         />
       )

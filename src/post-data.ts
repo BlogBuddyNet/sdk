@@ -111,6 +111,16 @@ export function extractHeadings(content: unknown): PostHeading[] {
 
 export const MAX_GALLERY_IMAGES = 5
 
+export const MAX_IMAGE_ALT_LENGTH = 250
+
+export function imageAltFor(content: unknown, url: string): string {
+  if (!url || !content || typeof content !== 'object') return ''
+  const alts = (content as { imageAlts?: unknown }).imageAlts
+  if (!alts || typeof alts !== 'object' || Array.isArray(alts)) return ''
+  const alt = (alts as Record<string, unknown>)[url]
+  return typeof alt === 'string' ? alt.trim().slice(0, MAX_IMAGE_ALT_LENGTH) : ''
+}
+
 export function extractGalleryImages(content: unknown): string[] {
   if (!content || typeof content !== 'object') return []
   const raw = (content as { galleryImages?: unknown }).galleryImages
